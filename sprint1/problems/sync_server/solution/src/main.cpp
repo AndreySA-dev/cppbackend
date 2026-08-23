@@ -26,7 +26,7 @@ using StringResponse = http::response<http::string_body>;
 
 #include <sstream>
 #include <thread>
-
+#include <optional>
 
 // Структура ContentType задаёт область видимости для констант,
 // задающих значения HTTP-заголовка Content-Type
