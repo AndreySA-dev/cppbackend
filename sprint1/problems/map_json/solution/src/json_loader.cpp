@@ -11,7 +11,7 @@ namespace json_loader {
 using namespace std::literals;
 
 namespace {
-	
+
 json::value parse_file(const std::string& filename) {
 	std::ifstream file(filename);
 	if (!file.is_open()) {
@@ -24,8 +24,6 @@ json::value parse_file(const std::string& filename) {
 	return json::parse(content);
 }
 
-} // namespace
-
 std::string JStrToStr(const json::string str) {
 	return std::string(str.data(), str.size());
 }
@@ -35,7 +33,7 @@ model::Point JSONToPoint(const json::value& jv) {
 }
 
 model::Size JSONToSize(const json::value& jv) {
-	return {jv.at("h").to_number<int>(), jv.at("w").to_number<int>()};
+	return {jv.at("w").to_number<int>(), jv.at("h").to_number<int>()};
 }
 
 model::Rectangle JSONToRectangle(const json::value& jv) {
@@ -87,6 +85,91 @@ model::Map JSONToMap(const json::object& jo) {
 	}
 
 	return map;
+}
+
+void PointToJSON(model::Point point, json::object& jo) {
+	jo["x"] = point.x;
+	jo["y"] = point.y;
+}
+
+
+void SizeToJSON(model::Size size, json::object& jo) {
+	jo["w"] = size.width;
+	jo["h"] = size.height;
+}
+
+
+void RectangleToJSON(model::Rectangle rect, json::object& jo) {
+	PointToJSON(rect.position, jo);
+	SizeToJSON(rect.size, jo);
+}
+
+
+void BuildingToJSON(model::Building building, json::object& jo) {
+	RectangleToJSON(building.GetBounds(), jo);
+}
+
+
+void OffsetToJSON(model::Offset offset, json::object& jo) {
+	jo["offsetX"] = offset.dx;
+	jo["offsetY"] = offset.dy;
+}
+
+
+void OfficeToJSON(const model::Office& office, json::object& jo) {
+	jo["id"] = *office.GetId();
+	PointToJSON(office.GetPosition(), jo);
+	OffsetToJSON(office.GetOffset(), jo);
+}
+
+
+void RoadToJSON(const model::Road& road, json::object& jo) {
+	jo["x0"] = road.GetStart().x;
+	jo["y0"] = road.GetStart().y;
+	if (road.IsHorizontal()) {
+		jo["x1"] = road.GetEnd().x;
+	} else {
+		jo["y1"] = road.GetEnd().y;
+	}
+}
+
+
+
+
+} // namespace
+
+void MapInfoToJSON(const model::Map& map, json::object& jo) {
+	jo["id"] = *map.GetId();
+	jo["name"] = map.GetName();
+}
+
+
+void MapToJSON(const model::Map& map, json::object& jo) {
+	
+	MapInfoToJSON(map, jo);
+
+
+	auto& jroads = jo.emplace("roads", json::array{}).first->value().as_array();
+	for (const auto& road : map.GetRoads()) {
+		json::object new_jroad;
+		RoadToJSON(road, new_jroad);
+		jroads.push_back(std::move(new_jroad));
+	}
+	
+	auto& jbuildings = jo.emplace("buildings", json::array{}).first->value().as_array();
+	for (const auto& building : map.GetBuildings()) {
+		json::object new_jbuilding;
+		BuildingToJSON(building, new_jbuilding);
+		jbuildings.push_back(std::move(new_jbuilding));
+	}
+	
+	auto& joffices = jo.emplace("offices", json::array{}).first->value().as_array();
+	for (const auto& office : map.GetOffices()) {
+		json::object new_joffice;
+		OfficeToJSON(office, new_joffice);
+		joffices.push_back(std::move(new_joffice));
+	}
+	
 }
 
 

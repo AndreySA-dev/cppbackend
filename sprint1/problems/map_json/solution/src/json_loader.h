@@ -9,21 +9,10 @@ namespace json_loader {
 
 namespace json = boost::json;
 
-model::Point JSONToPoint(const json::value& jv);
+void MapInfoToJSON(const model::Map& map, json::object& jo);
 
-model::Size JSONToSize(const json::value& jv);
+void MapToJSON(const model::Map& Map, json::object& jo);
 
-model::Building JSONToBuilding(const json::value& jv);
-
-model::Offset JSONToOffset(const json::value& jv);
-
-model::Office JSONToOffice(const json::value& jv);
-
-model::Road JSONToRoad(const json::object& jo);
-
-model::Map JSONToMap(const json::object& jo);
-
-
-model::Game LoadGame(const std::filesystem::path &json_path);
+model::Game LoadGame(const std::filesystem::path& json_path);
 
 } // namespace json_loader
