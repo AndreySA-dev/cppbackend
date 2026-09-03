@@ -133,9 +133,6 @@ void RoadToJSON(const model::Road& road, json::object& jo) {
 	}
 }
 
-
-
-
 } // namespace
 
 void MapInfoToJSON(const model::Map& map, json::object& jo) {

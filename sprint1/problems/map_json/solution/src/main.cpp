@@ -28,43 +28,22 @@ void RunWorkers(unsigned n, const Fn& fn) {
 	fn();
 }
 
-// StringResponse HandleRequest(StringRequest&& req) {
-// 	const auto text_response = [&req](http::status status, std::string_view text) {
-// 		return MakeStringResponse(status, text, req.version(), req.keep_alive());
-// 	};
-
-// 	// std::cerr << "HandleRequest" << std::endl;
-
-// 	StringResponse resp;
-
-// 	if (req.method() == http::verb::get || req.method() == http::verb::head) {
-// 		std::stringstream ss;
-// 		ss << "Hello, "sv << req.target().substr(1);
-
-// 		resp = text_response(http::status::ok, ss.str());
-// 		if (req.method() == http::verb::head) {
-// 			resp.body() = "";
-// 		}
-// 	} else {
-// 		resp = text_response(http::status::method_not_allowed, "Invalid method");
-// 		resp.set(http::field::allow, "GET,HEAD");
-// 	}
-// 	return resp;
-// }
-
 } // namespace
 
 int main(int argc, const char* argv[]) {
+
 	if (argc != 2) {
 		std::cerr << "Usage: game_server <game-config-json>"sv << std::endl;
 		return EXIT_FAILURE;
 	}
+	
 	try {
 		// 1. Загружаем карту из файла и построить модель игры
 		model::Game game = json_loader::LoadGame(argv[1]);
 		
 		const auto address = net::ip::make_address("0.0.0.0");
 		constexpr net::ip::port_type port = 8080;
+		std::cout << "Hello! Server is starting at port " << port << std::endl; 
 
 		// 2. Инициализируем io_context
 		const unsigned num_threads = std::thread::hardware_concurrency();
@@ -92,8 +71,11 @@ int main(int argc, const char* argv[]) {
 
 		// 6. Запускаем обработку асинхронных операций
 		RunWorkers(std::max(1u, num_threads), [&ioc] { ioc.run(); });
+
 	} catch (const std::exception& ex) {
+
 		std::cerr << ex.what() << std::endl;
 		return EXIT_FAILURE;
+
 	}
 }

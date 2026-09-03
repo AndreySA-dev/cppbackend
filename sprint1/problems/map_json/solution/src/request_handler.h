@@ -21,7 +21,6 @@ struct ContentType {
 	ContentType() = delete;
 	constexpr static std::string_view TEXT_HTML = "text/html"sv;
 	constexpr static std::string_view APP_JSON = "application/json"sv;
-	// При необходимости внутрь ContentType можно добавить и другие типы контента
 };
 
 struct RequestsTexts {
@@ -33,9 +32,9 @@ struct RequestsTexts {
 
 struct ResponseTexts {
 	ResponseTexts() = delete;
-	constexpr static std::string_view MAP_NOT_FOUND = R"({"code" : "mapNotFound", "message" : "Map not found"})";
-	constexpr static std::string_view BAD_REQUEST = R"({"code" : "badRequest", "message" : "Bad request"})";
-	constexpr static std::string_view UNKNOWN_REQUST = R"({"code": "unknownRequest", "message": "Unknown request"})";
+	constexpr static std::string_view MAP_NOT_FOUND = R"({"code" : "mapNotFound", "message" : "Map not found"})"sv;
+	constexpr static std::string_view BAD_REQUEST = R"({"code" : "badRequest", "message" : "Bad request"})"sv;
+	constexpr static std::string_view UNKNOWN_REQUST = R"({"code": "unknownRequest", "message": "Unknown request"})"sv;
 };
 
 
