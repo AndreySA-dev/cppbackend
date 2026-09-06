@@ -12,7 +12,7 @@ using namespace std::literals;
 
 namespace {
 
-json::value parse_file(const std::string& filename) {
+json::value ParseFile(const std::string& filename) {
 	std::ifstream file(filename);
 	if (!file.is_open()) {
 		throw std::runtime_error("Cannot open file: " + filename);
@@ -176,7 +176,7 @@ model::Game LoadGame(const std::filesystem::path& json_path) {
 	// Загрузить модель игры из файла
 	model::Game game;
 
-	auto json_data = parse_file(json_path);
+	auto json_data = ParseFile(json_path);
 
 	for (const auto& json_map : json_data.as_object().at("maps").as_array()) {
 		game.AddMap(JSONToMap(json_map.as_object()));
