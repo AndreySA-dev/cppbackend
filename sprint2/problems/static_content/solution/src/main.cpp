@@ -2,6 +2,7 @@
 //
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/signal_set.hpp>
+#include <filesystem>
 #include <iostream>
 #include <thread>
 
@@ -32,18 +33,24 @@ void RunWorkers(unsigned n, const Fn& fn) {
 
 int main(int argc, const char* argv[]) {
 
-	if (argc != 2) {
-		std::cerr << "Usage: game_server <game-config-json>"sv << std::endl;
+	if (argc != 3) {
+		std::cerr << "Usage: game_server <game-config-json> <wwwroot directory>"sv << std::endl;
 		return EXIT_FAILURE;
 	}
-	
+
+
+	if (!std::filesystem::exists(argv[2])) {
+		std::cerr << "wwwroot directory is not found."sv << std::endl;
+		return EXIT_FAILURE;
+	}
+
 	try {
 		// 1. Загружаем карту из файла и построить модель игры
 		model::Game game = json_loader::LoadGame(argv[1]);
-		
+
 		const auto address = net::ip::make_address("0.0.0.0");
 		constexpr net::ip::port_type port = 8080;
-		std::cout << "Hello! Server is starting at port " << port << std::endl; 
+		std::cout << "Hello! Server is starting at port " << port << std::endl;
 
 		// 2. Инициализируем io_context
 		const unsigned num_threads = std::thread::hardware_concurrency();
@@ -59,7 +66,7 @@ int main(int argc, const char* argv[]) {
 		});
 
 		// 4. Создаём обработчик HTTP-запросов и связываем его с моделью игры
-		http_handler::RequestHandler handler{game};
+		http_handler::RequestHandler handler{game, argv[2]};
 
 		// 5. Запустить обработчик HTTP-запросов, делегируя их обработчику запросов
 		http_server::ServeHttp(ioc, {address, port}, [&handler](auto&& req, auto&& send) {
@@ -76,6 +83,5 @@ int main(int argc, const char* argv[]) {
 
 		std::cerr << ex.what() << std::endl;
 		return EXIT_FAILURE;
-
 	}
 }
