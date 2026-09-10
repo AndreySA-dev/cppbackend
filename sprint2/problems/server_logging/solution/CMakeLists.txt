@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.11)
 
-project(server_logging CXX)
+project(game_server CXX)
 set(CMAKE_CXX_STANDARD 20)
 
 # обратите внимание на аргумент TARGETS у команды conan_basic_setup
@@ -15,7 +15,7 @@ conan_basic_setup(TARGETS)
 # set(THREADS_PREFER_PTHREAD_FLAG ON)
 # find_package(Threads REQUIRED)
 
-add_executable(server_logging
+add_executable(game_server
 	src/main.cpp
 	src/http_server.cpp
 	src/http_server.h
@@ -33,8 +33,8 @@ add_executable(server_logging
 	src/log.h
 	src/log.cpp
 )
-# target_link_libraries(server_logging PRIVATE Threads::Threads)
+# target_link_libraries(game_server PRIVATE Threads::Threads)
 
 # используем "импортированную" цель CONAN_PKG::boost
-target_include_directories(server_logging PRIVATE CONAN_PKG::boost)
-target_link_libraries(server_logging CONAN_PKG::boost) 
+target_include_directories(game_server PRIVATE CONAN_PKG::boost)
+target_link_libraries(game_server CONAN_PKG::boost) 
