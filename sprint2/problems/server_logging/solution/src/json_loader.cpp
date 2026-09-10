@@ -1,10 +1,11 @@
 #include "json_loader.h"
-
+#include "log.h"
 #include "model.h"
-#include <boost/json.hpp>
+
 #include <fstream>
 #include <string_view>
 
+#include <boost/json.hpp>
 
 namespace json_loader {
 

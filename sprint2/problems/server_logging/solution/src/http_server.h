@@ -2,6 +2,7 @@
 #define HTTP_SERVER_H
 
 #include "sdk.h"
+#include "log.h"
 
 // boost.beast будет использовать std::string_view вместо boost::string_view
 #define BOOST_BEAST_USE_STD_STRING_VIEW
@@ -58,6 +59,8 @@ class SessionBase {
 			});
 	}
 
+	const tcp::socket& GetSocket() const;
+
 
   private:
 	virtual std::shared_ptr<SessionBase> GetSharedThis() = 0;
@@ -99,7 +102,7 @@ class Session : public SessionBase, public std::enable_shared_from_this<Session<
 		// Захватываем умный указатель на текущий объект Session в лямбде,
 		// чтобы продлить время жизни сессии до вызова лямбды.
 		// Используется generic-лямбда функция, способная принять response произвольного типа
-		request_handler_(std::move(request),
+		request_handler_(std::move(request), GetSocket(),
 			[self = this->shared_from_this()](auto&& response) { self->Write(std::move(response)); });
 	}
 
@@ -164,7 +167,6 @@ class Listener : public std::enable_shared_from_this<Listener<RequestHandler>> {
 
 		// Асинхронно обрабатываем сессию
 		AsyncRunSession(std::move(socket));
-
 		// Принимаем новое соединение
 		DoAccept();
 	}

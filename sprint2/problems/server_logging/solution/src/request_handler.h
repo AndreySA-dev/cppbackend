@@ -1,7 +1,9 @@
 #pragma once
 #include "http_server.h"
 #include "json_loader.h"
+#include "log.h"
 #include "model.h"
+#include "perft_timer.h"
 
 #include <filesystem>
 #include <iostream>
@@ -81,15 +83,25 @@ class RequestHandler {
 	RequestHandler& operator=(const RequestHandler&) = delete;
 
 	template <typename Body, typename Allocator, typename Send>
-	void operator()(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send) {
+	void operator()(http::request<Body, http::basic_fields<Allocator>>&& req, const tcp::socket& socket, Send&& send) {
+
+		perf_timer<std::chrono::milliseconds> timer;
+
+		StringResponse string_resp;
+		bool is_file_response = false;
+		FileResponse file_resp;
 
 		const auto& target = req.target();
-		std::cerr << "request > " << target << std::endl;
+		std::string addr = socket.remote_endpoint().address().to_string();
+		srv_log::LogMessage(
+			{{"ip", addr}, {"URI", target}, {"method", req.method_string()}, {"address", addr}}, "request received"sv);
+
 		if (target == RequestsTexts::API_MAPS) {
 			// target /api/v1/maps/ -> get list of all maps
 
 			std::string maps = GetMapList();
-			send(GetResponse(maps, http::status::ok, req.keep_alive()));
+			// send(GetResponse(maps, http::status::ok, req.keep_alive()));
+			string_resp = GetResponse(maps, http::status::ok, req.keep_alive());
 
 		} else if (target.starts_with(RequestsTexts::API_ONE_MAP) &&
 				   target.size() > RequestsTexts::API_ONE_MAP.size()) {
@@ -99,21 +111,54 @@ class RequestHandler {
 			auto maps = GetMap(std::string(map_id));
 
 			if (maps) {
-				send(GetResponse(*maps, http::status::ok, req.keep_alive()));
+				// send(GetResponse(*maps, http::status::ok, req.keep_alive()));
+				string_resp = GetResponse(*maps, http::status::ok, req.keep_alive());
 			} else {
-				send(GetResponse(ResponseTexts::MAP_NOT_FOUND, http::status::not_found, req.keep_alive()));
+				// send(GetResponse(ResponseTexts::MAP_NOT_FOUND, http::status::not_found, req.keep_alive()));
+				string_resp = GetResponse(ResponseTexts::MAP_NOT_FOUND, http::status::not_found, req.keep_alive());
 			}
 		} else if (target.starts_with(RequestsTexts::API)) {
-			send(GetResponse(ResponseTexts::BAD_REQUEST, http::status::bad_request, req.keep_alive()));
+			// send(GetResponse(ResponseTexts::BAD_REQUEST, http::status::bad_request, req.keep_alive()));
+			string_resp = GetResponse(ResponseTexts::BAD_REQUEST, http::status::bad_request, req.keep_alive());
 		} else {
 			// get file from wwwroot directory
-			std::pair<std::optional<FileResponse>, ErrorResponse> resp = GetFile(std::string(target), req.keep_alive());
-			if (resp.first) {
-				send(*resp.first);
+			std::pair<std::optional<FileResponse>, ErrorResponse> file_full_response =
+				GetFile(std::string(target), req.keep_alive());
+			if (file_full_response.first) {
+				// send(*resp.first);
+				file_resp = std::move(*file_full_response.first);
+				is_file_response = true;
 			} else {
-				send(*resp.second);
+				// send(*resp.second);
+				string_resp = std::move(*file_full_response.second);
 			}
 			// send(GetResponse(ResponseTexts::UNKNOWN_REQUST, http::status::bad_request, req.keep_alive()));
+		}
+
+		const http::header<false>* resp_ptr;
+		if (is_file_response) {
+			resp_ptr = &file_resp;
+		} else {
+			resp_ptr = &string_resp;
+		}
+
+		size_t time;
+		json::value jcontent_type;
+
+		int code = resp_ptr->result_int();
+		if (const auto it = resp_ptr->find("Content-Type"); it != resp_ptr->cend()) {
+			jcontent_type.emplace_string() = std::string(it->value());
+		} else {
+			jcontent_type.emplace_null();
+		}
+
+		srv_log::LogMessage({{"response_time", timer.get_duration()}, {"code", code}, {"content_type", jcontent_type}},
+			"response sent"sv);
+
+		if (is_file_response) {
+			send(std::move(file_resp));
+		} else {
+			send(std::move(string_resp));
 		}
 	}
 
@@ -125,8 +170,7 @@ class RequestHandler {
 
 	std::pair<std::optional<FileResponse>, ErrorResponse> GetFile(std::string target, bool keep_alive);
 
-	StringResponse GetResponse(
-		std::string_view text, http::status status, std::string_view type, bool keep_alive);
+	StringResponse GetResponse(std::string_view text, http::status status, std::string_view type, bool keep_alive);
 
 	StringResponse GetResponse(std::string_view text, http::status status, bool keep_alive);
 

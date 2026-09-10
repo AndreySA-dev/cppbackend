@@ -1,18 +1,21 @@
+#include "json_loader.h"
+#include "log.h"
+#include "request_handler.h"
 #include "sdk.h"
-//
-#include <boost/asio/io_context.hpp>
-#include <boost/asio/signal_set.hpp>
+
+
 #include <filesystem>
 #include <iostream>
 #include <thread>
 
-#include "json_loader.h"
-#include "request_handler.h"
+#include <boost/asio/io_context.hpp>
+#include <boost/asio/signal_set.hpp>
 
 using namespace std::literals;
 namespace net = boost::asio;
 namespace sys = boost::system;
 namespace json = boost::json;
+
 
 namespace {
 
@@ -33,6 +36,8 @@ void RunWorkers(unsigned n, const Fn& fn) {
 
 int main(int argc, const char* argv[]) {
 
+	srv_log::InitBoostLogFilter(); // initialize logging
+
 	if (argc != 3) {
 		std::cerr << "Usage: game_server <game-config-json> <wwwroot directory>"sv << std::endl;
 		return EXIT_FAILURE;
@@ -50,7 +55,8 @@ int main(int argc, const char* argv[]) {
 
 		const auto address = net::ip::make_address("0.0.0.0");
 		constexpr net::ip::port_type port = 8080;
-		std::cout << "Hello! Server is starting at port " << port << std::endl;
+		// std::cout << "Hello! Server is starting at port " << port << std::endl;
+
 
 		// 2. Инициализируем io_context
 		const unsigned num_threads = std::thread::hardware_concurrency();
@@ -69,12 +75,13 @@ int main(int argc, const char* argv[]) {
 		http_handler::RequestHandler handler{game, argv[2]};
 
 		// 5. Запустить обработчик HTTP-запросов, делегируя их обработчику запросов
-		http_server::ServeHttp(ioc, {address, port}, [&handler](auto&& req, auto&& send) {
-			handler(std::forward<decltype(req)>(req), std::forward<decltype(send)>(send));
+		http_server::ServeHttp(ioc, {address, port}, [&handler](auto&& req, const auto& socket, auto&& send) {
+			handler(std::forward<decltype(req)>(req),  std::forward<decltype(socket)>(socket), std::forward<decltype(send)>(send));
 		});
 
 		// Эта надпись сообщает тестам о том, что сервер запущен и готов обрабатывать запросы
-		std::cout << "Server has started..."sv << std::endl;
+		// std::cout << "Server has started..."sv << std::endl;
+		srv_log::LogMessage({{"port", port}, {"address", address.to_string()}}, "server started"sv);
 
 		// 6. Запускаем обработку асинхронных операций
 		RunWorkers(std::max(1u, num_threads), [&ioc] { ioc.run(); });
@@ -82,6 +89,10 @@ int main(int argc, const char* argv[]) {
 	} catch (const std::exception& ex) {
 
 		std::cerr << ex.what() << std::endl;
+		srv_log::LogMessage({{"code", EXIT_FAILURE}, {"exception", ex.what()}}, "server exited"sv);
 		return EXIT_FAILURE;
+
 	}
+
+	srv_log::LogMessage({{"code", 0}}, "server exited"sv);
 }
