@@ -74,9 +74,18 @@ int main(int argc, const char* argv[]) {
 		// 4. Создаём обработчик HTTP-запросов и связываем его с моделью игры
 		http_handler::RequestHandler handler{game, argv[2]};
 
+		// Оборачиваем его в логирующий декоратор
+		http_handler::LoggingRequestHandler logging_handler{handler};
+
 		// 5. Запустить обработчик HTTP-запросов, делегируя их обработчику запросов
-		http_server::ServeHttp(ioc, {address, port}, [&handler](auto&& req, const auto& socket, auto&& send) {
-			handler(std::forward<decltype(req)>(req),  std::forward<decltype(socket)>(socket), std::forward<decltype(send)>(send));
+		// http_server::ServeHttp(ioc, {address, port}, [&handler](auto&& req, const auto& socket, auto&& send) {
+		// 	handler(std::forward<decltype(req)>(req), std::forward<decltype(socket)>(socket),
+		// 		std::forward<decltype(send)>(send));
+		// });
+
+		http_server::ServeHttp(ioc, {address, port}, [&logging_handler](auto&& req, const auto& socket, auto&& send) {
+			logging_handler(std::forward<decltype(req)>(req), std::forward<decltype(socket)>(socket),
+				std::forward<decltype(send)>(send));
 		});
 
 		// Эта надпись сообщает тестам о том, что сервер запущен и готов обрабатывать запросы
@@ -91,7 +100,6 @@ int main(int argc, const char* argv[]) {
 		std::cerr << ex.what() << std::endl;
 		srv_log::LogMessage({{"code", EXIT_FAILURE}, {"exception", ex.what()}}, "server exited"sv);
 		return EXIT_FAILURE;
-
 	}
 
 	srv_log::LogMessage({{"code", 0}}, "server exited"sv);

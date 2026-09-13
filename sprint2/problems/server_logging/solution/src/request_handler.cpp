@@ -29,7 +29,7 @@ std::optional<std::string> RequestHandler::GetMap(const std::string& id) {
 	return std::nullopt;
 }
 
-StringResponse RequestHandler::GetResponse(
+CommonResponse RequestHandler::GetStringResponse(
 	std::string_view text, http::status status, std::string_view type, bool keep_alive) {
 
 	StringResponse response(status, 11);
@@ -42,16 +42,16 @@ StringResponse RequestHandler::GetResponse(
 }
 
 
-StringResponse RequestHandler::GetResponse(std::string_view text, http::status status, bool keep_alive) {
+// CommonResponse RequestHandler::GetResponse(std::string_view text, http::status status, bool keep_alive) {
 
-	StringResponse response(status, 11);
-	response.keep_alive(keep_alive);
-	response.body() = text;
-	response.content_length(text.size());
-	response.set(http::field::content_type, ContentType::APP_JSON);
+// 	StringResponse response(status, 11);
+// 	response.keep_alive(keep_alive);
+// 	response.body() = text;
+// 	response.content_length(text.size());
+// 	response.set(http::field::content_type, ContentType::APP_JSON);
 
-	return response;
-}
+// 	return response;
+// }
 
 
 std::string_view RequestHandler::GetTypeByExt(std::string_view ext) const {
@@ -61,26 +61,26 @@ std::string_view RequestHandler::GetTypeByExt(std::string_view ext) const {
 	return ContentType::APP_OCTETSTREAM;
 }
 
-std::pair<std::optional<FileResponse>, ErrorResponse> RequestHandler::GetFile(std::string target, bool keep_alive) {
+CommonResponse RequestHandler::GetFileResponse(std::string target, bool keep_alive) {
 
 	target = helper::URLDecode(target);
 
 	if (target.size() == 0 || target[0] != '/') {
-
-		StringResponse err_resp = GetResponse(
-			"Error: incorrect resource in request.", http::status::bad_request, ContentType::TEXT_PLAIN, keep_alive);
-		return {std::nullopt, std::move(err_resp)};
+		// request is empty or not start with '/'
+		return {GetStringResponse(
+			"Error: incorrect resource in request.", http::status::bad_request, ContentType::TEXT_PLAIN, keep_alive)};
+		// return {std::nullopt, std::move(err_resp)};
 	}
 
 	fs::path req_path;
 	fs::path root_path(fs::weakly_canonical(wwwroot_path_));
 
 	if (target != "/"sv) {
+		// Get static file (not index.html)
 
 		req_path = fs::weakly_canonical(root_path / fs::path(target.substr(1)));
 
 		bool path_in_root = true;
-
 		for (auto r = root_path.begin(), p = req_path.begin(); r != root_path.end(); ++r, ++p) {
 			if (p == req_path.end() || *p != *r) {
 				path_in_root = false;
@@ -88,9 +88,10 @@ std::pair<std::optional<FileResponse>, ErrorResponse> RequestHandler::GetFile(st
 		}
 
 		if (!path_in_root) {
-			StringResponse err_resp = GetResponse("Error: incorrect resource in request.", http::status::bad_request,
-				ContentType::TEXT_PLAIN, keep_alive);
-			return {std::nullopt, std::move(err_resp)};
+			// Request file with incorrect path, for example /directory/../../file.name
+			return {GetStringResponse("Error: incorrect resource in request.", http::status::bad_request,
+				ContentType::TEXT_PLAIN, keep_alive)};
+			// return {std::nullopt, std::move(err_resp)};
 		}
 
 	} else {
@@ -98,9 +99,10 @@ std::pair<std::optional<FileResponse>, ErrorResponse> RequestHandler::GetFile(st
 	}
 
 	if (!fs::exists(req_path)) {
-		StringResponse err_resp =
-			GetResponse("Error: File not found."sv, http::status::not_found, ContentType::TEXT_PLAIN, keep_alive);
-		return {std::nullopt, std::move(err_resp)};
+		return {GetStringResponse("Error: File not found."sv, http::status::not_found, ContentType::TEXT_PLAIN, keep_alive)};
+		// StringResponse err_resp =
+		// 	GetResponse("Error: File not found."sv, http::status::not_found, ContentType::TEXT_PLAIN, keep_alive);
+		// return {std::nullopt, std::move(err_resp)};
 	}
 
 	std::string_view content_type = GetTypeByExt(req_path.extension().string());
@@ -114,15 +116,17 @@ std::pair<std::optional<FileResponse>, ErrorResponse> RequestHandler::GetFile(st
 	file.open(req_path.c_str(), beast::file_mode::read, ec);
 
 	if (ec) {
-		StringResponse err_resp = GetResponse(
-			"Error: Open file error."sv, http::status::internal_server_error, ContentType::TEXT_PLAIN, keep_alive);
-		return {std::nullopt, std::nullopt};
+		return {GetStringResponse(
+			"Error: Open file error."sv, http::status::internal_server_error, ContentType::TEXT_PLAIN, keep_alive)};
+		// StringResponse err_resp = GetResponse(
+		// 	"Error: Open file error."sv, http::status::internal_server_error, ContentType::TEXT_PLAIN, keep_alive);
+		// return {std::nullopt, std::nullopt};
 	}
 
 	resp.body() = std::move(file);
 	resp.prepare_payload();
 
-	return {std::move(resp), std::nullopt};
+	return {std::move(resp)};
 }
 
 } // namespace http_handler

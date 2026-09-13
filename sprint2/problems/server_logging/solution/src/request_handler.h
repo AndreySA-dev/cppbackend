@@ -6,11 +6,11 @@
 #include "perft_timer.h"
 
 #include <filesystem>
-#include <iostream>
+// #include <iostream>
 #include <optional>
-#include <sstream>
 #include <unordered_map>
-#include <utility>
+// #include <utility>
+#include <variant>
 
 namespace http_handler {
 
@@ -25,9 +25,11 @@ using namespace std::literals;
 using StringRequest = http::request<http::string_body>;
 // Ответ, тело которого представлено в виде строки
 using StringResponse = http::response<http::string_body>;
-
-using ErrorResponse = std::optional<StringResponse>;
 using FileResponse = http::response<http::file_body>;
+
+using CommonResponse = std::variant<StringResponse, FileResponse>;
+
+// using ErrorResponse = std::optional<StringResponse>;
 
 const std::unordered_map<std::string_view, std::string_view> MIMEs = {
 	{".htm"sv, "text/html"sv},
@@ -83,83 +85,53 @@ class RequestHandler {
 	RequestHandler& operator=(const RequestHandler&) = delete;
 
 	template <typename Body, typename Allocator, typename Send>
-	void operator()(http::request<Body, http::basic_fields<Allocator>>&& req, const tcp::socket& socket, Send&& send) {
+	http::header<false> operator()(
+		http::request<Body, http::basic_fields<Allocator>>&& req, const tcp::socket& socket, Send&& send) {
 
-		perf_timer<std::chrono::milliseconds> timer;
+		CommonResponse resp;
 
-		StringResponse string_resp;
-		bool is_file_response = false;
-		FileResponse file_resp;
 
 		const auto& target = req.target();
-		std::string addr = socket.remote_endpoint().address().to_string();
-		srv_log::LogMessage(
-			{{"ip", addr}, {"URI", target}, {"method", req.method_string()}, {"address", addr}}, "request received"sv);
+
 
 		if (target == RequestsTexts::API_MAPS) {
-			// target /api/v1/maps/ -> get list of all maps
+			// target = "/api/v1/maps/" -> get list of all maps
 
 			std::string maps = GetMapList();
-			// send(GetResponse(maps, http::status::ok, req.keep_alive()));
-			string_resp = GetResponse(maps, http::status::ok, req.keep_alive());
+			resp = GetStringResponse(maps, http::status::ok, ContentType::APP_JSON, req.keep_alive());
 
 		} else if (target.starts_with(RequestsTexts::API_ONE_MAP) &&
 				   target.size() > RequestsTexts::API_ONE_MAP.size()) {
-			// target /api/v1/maps/.... -> get one map by id
+			// target = "/api/v1/maps/...." -> get one map by id
 
 			auto map_id = target.substr(RequestsTexts::API_ONE_MAP.size());
 			auto maps = GetMap(std::string(map_id));
 
 			if (maps) {
-				// send(GetResponse(*maps, http::status::ok, req.keep_alive()));
-				string_resp = GetResponse(*maps, http::status::ok, req.keep_alive());
+				resp = GetStringResponse(*maps, http::status::ok, ContentType::APP_JSON, req.keep_alive());
 			} else {
-				// send(GetResponse(ResponseTexts::MAP_NOT_FOUND, http::status::not_found, req.keep_alive()));
-				string_resp = GetResponse(ResponseTexts::MAP_NOT_FOUND, http::status::not_found, req.keep_alive());
+				resp = GetStringResponse(
+					ResponseTexts::MAP_NOT_FOUND, http::status::not_found, ContentType::APP_JSON, req.keep_alive());
 			}
+
 		} else if (target.starts_with(RequestsTexts::API)) {
-			// send(GetResponse(ResponseTexts::BAD_REQUEST, http::status::bad_request, req.keep_alive()));
-			string_resp = GetResponse(ResponseTexts::BAD_REQUEST, http::status::bad_request, req.keep_alive());
+
+			resp = GetStringResponse(
+				ResponseTexts::BAD_REQUEST, http::status::bad_request, ContentType::APP_JSON, req.keep_alive());
+
 		} else {
 			// get file from wwwroot directory
-			std::pair<std::optional<FileResponse>, ErrorResponse> file_full_response =
-				GetFile(std::string(target), req.keep_alive());
-			if (file_full_response.first) {
-				// send(*resp.first);
-				file_resp = std::move(*file_full_response.first);
-				is_file_response = true;
-			} else {
-				// send(*resp.second);
-				string_resp = std::move(*file_full_response.second);
-			}
-			// send(GetResponse(ResponseTexts::UNKNOWN_REQUST, http::status::bad_request, req.keep_alive()));
+
+			resp = GetFileResponse(std::string(target), req.keep_alive());
+
 		}
 
-		const http::header<false>* resp_ptr;
-		if (is_file_response) {
-			resp_ptr = &file_resp;
-		} else {
-			resp_ptr = &string_resp;
-		}
+		http::header<false> returned_resp;
+		std::visit([&returned_resp](auto&& result) { returned_resp = result; }, resp);
 
-		size_t time;
-		json::value jcontent_type;
+		std::visit([&send](auto&& result) { send(std::forward<decltype(result)>(result)); }, resp);
 
-		int code = resp_ptr->result_int();
-		if (const auto it = resp_ptr->find("Content-Type"); it != resp_ptr->cend()) {
-			jcontent_type.emplace_string() = std::string(it->value());
-		} else {
-			jcontent_type.emplace_null();
-		}
-
-		srv_log::LogMessage({{"response_time", timer.get_duration()}, {"code", code}, {"content_type", jcontent_type}},
-			"response sent"sv);
-
-		if (is_file_response) {
-			send(std::move(file_resp));
-		} else {
-			send(std::move(string_resp));
-		}
+		return returned_resp;
 	}
 
 
@@ -168,16 +140,56 @@ class RequestHandler {
 
 	std::optional<std::string> GetMap(const std::string& id);
 
-	std::pair<std::optional<FileResponse>, ErrorResponse> GetFile(std::string target, bool keep_alive);
+	CommonResponse GetFileResponse(std::string target, bool keep_alive);
 
-	StringResponse GetResponse(std::string_view text, http::status status, std::string_view type, bool keep_alive);
+	CommonResponse GetStringResponse(
+		std::string_view text, http::status status, std::string_view type, bool keep_alive);
 
-	StringResponse GetResponse(std::string_view text, http::status status, bool keep_alive);
+	// CommonResponse GetResponse(std::string_view text, http::status status, bool keep_alive);
 
 	std::string_view GetTypeByExt(std::string_view ext) const;
 
 	model::Game& game_;
 	std::filesystem::path wwwroot_path_;
+};
+
+
+template <class RealHandler>
+class LoggingRequestHandler {
+
+
+	//  static void LogRequest(const Request& r);
+	//  static void LogResponse(const Response& r);
+  public:
+	LoggingRequestHandler(RealHandler& handler) : decorated_(handler) {};
+
+	template <typename Body, typename Allocator, typename Send>
+	void operator()(http::request<Body, http::basic_fields<Allocator>>&& req, const tcp::socket& socket, Send&& send) {
+
+
+		std::string addr = socket.remote_endpoint().address().to_string();
+		srv_log::LogMessage({{"ip", addr}, {"URI", req.target()}, {"method", req.method_string()}, {"address", addr}},
+			"request received"sv);
+
+		perf_timer<std::chrono::milliseconds> timer;
+		auto resp = decorated_(std::move(req), socket, send);
+		timer.stop();
+
+
+		json::value jcontent_type;
+		int code = -1;
+
+
+		code = resp.result_int();
+		if (const auto it = resp.find("Content-Type"); it != resp.cend()) {
+			jcontent_type.emplace_string() = std::string(it->value());
+		};
+		srv_log::LogMessage({{"response_time", timer.get_duration()}, {"code", code}, {"content_type", jcontent_type}},
+			"response sent"sv);
+	}
+
+  private:
+	RealHandler& decorated_;
 };
 
 } // namespace http_handler
