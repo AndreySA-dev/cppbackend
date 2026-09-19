@@ -77,7 +77,7 @@ int main(int argc, const char* argv[]) {
 		
 		// 4. Создаём обработчик HTTP-запросов и связываем его с моделью игры
 		std::string wwwroot_path = argv[2];
-		http_handler::RequestHandler handler{game, game_handler, wwwroot_path};
+		http_handler::RequestHandler handler{game, game_handler, wwwroot_path, ioc};
 
 		// Оборачиваем его в логирующий декоратор
 		http_handler::LoggingRequestHandler logging_handler{handler};

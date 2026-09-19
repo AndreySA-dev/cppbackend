@@ -11,20 +11,72 @@ using namespace std;
 namespace fs = std::filesystem;
 using namespace std::literals;
 using namespace game_handler;
+namespace net = boost::asio;
 
-RequestHandler::RequestHandler(model::Game& game, game_handler::GameHandler& game_handler, const std::string& root_path)
-	: game_{game}, game_handler_(game_handler), wwwroot_path_{root_path} {}
+
+RequestHandler::RequestHandler(
+	model::Game& game, game_handler::GameHandler& game_handler, const std::string& root_path, net::io_context& ctx)
+	: game_{game}, game_handler_(game_handler), wwwroot_path_{root_path}, api_strand_{net::make_strand(ctx)} {}
 
 
 CommonResponse RequestHandler::HandleHttpRequest(HTTPRequest req) {
 
+	// CommonResponse resp;
+	// auto target = req.target();
+
+	// if (target.starts_with(RequestsTexts::API_MAPS)) {
+	// 	// API request for MAP ==========================================
+
+	// 	// StringResponse map_resp;
+
+	// 	auto [resp_j, code] = game_handler_.HandleAPIMapRequest(target);
+	// 	http::status status;
+	// 	if (code == game::Code::OK) {
+	// 		status = http::status::ok;
+	// 	} else if (code == game::Code::NOT_FOUND) {
+	// 		status = http::status::not_found;
+	// 	} else {
+	// 		status = http::status::bad_request;
+	// 	}
+
+	// 	resp = {GetStringResponse(json::serialize(resp_j), status, ContentType::APP_JSON)};
+
+	// } else if (target.starts_with(RequestsTexts::API_GAME_JOIN)) {
+	// 	// API requst to join to game =============================
+
+	// 	return HandleHttpGameJoinRequest(req);
+	// 	// StringRe
+	// } else if (target.starts_with(RequestsTexts::API_GAME_PLAYERS)) {
+	// 	// API requst get all players =============================
+
+	// 	return HandleHttpGetPlayersRequest(req);
+
 	CommonResponse resp;
+	
+	auto target = req.target();
+	if (target.starts_with(RequestsTexts::API)) {
+		// API request
+
+		return HandleAPIRequest(req);
+
+	} else {
+		// get a file from www directory
+
+		return GetFileResponse(std::string(target));
+	}
+
+
+	// return resp;
+}
+
+StringResponse RequestHandler::HandleAPIRequest(HTTPRequest req) {
+
+	StringResponse resp;
+
 	auto target = req.target();
 
 	if (target.starts_with(RequestsTexts::API_MAPS)) {
 		// API request for MAP ==========================================
-
-		// StringResponse map_resp;
 
 		auto [resp_j, code] = game_handler_.HandleAPIMapRequest(target);
 		http::status status;
@@ -36,24 +88,18 @@ CommonResponse RequestHandler::HandleHttpRequest(HTTPRequest req) {
 			status = http::status::bad_request;
 		}
 
-		resp = {GetStringResponse(json::serialize(resp_j), status, ContentType::APP_JSON)};
+		resp = GetStringResponse(json::serialize(resp_j), status, ContentType::APP_JSON);
 
 	} else if (target.starts_with(RequestsTexts::API_GAME_JOIN)) {
 		// API requst to join to game =============================
 
-		return HandleHttpGameJoinRequest(req);
+		resp = HandleHttpGameJoinRequest(req);
 		// StringRe
 	} else if (target.starts_with(RequestsTexts::API_GAME_PLAYERS)) {
 		// API requst get all players =============================
 
-		return HandleHttpGetPlayersRequest(req);
-
-	} else {
-		// get a file from www directory
-
-		resp = GetFileResponse(std::string(target));
+		resp = HandleHttpGetPlayersRequest(req);
 	}
-
 
 	return resp;
 }

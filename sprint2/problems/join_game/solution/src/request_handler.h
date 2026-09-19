@@ -107,13 +107,12 @@ struct ResponseTemplates {
 
 	constexpr static std::string_view UNKNOWN_TOKEN_PLAYER_NOT_FOUND =
 		R"({"code" : "unknownToken", "message" : "Player token has not been found"})"sv;
-
 };
 
 
 class RequestHandler {
   public:
-	explicit RequestHandler(model::Game& game, game_handler::GameHandler& game_handler, const std::string& root_path);
+	explicit RequestHandler(model::Game& game, game_handler::GameHandler& game_handler, const std::string& root_path, net::io_context& ctx);
 
 	using HTTPRequest = http::request<http::string_body>;
 
@@ -125,6 +124,10 @@ class RequestHandler {
 		[[maybe_unused]] const tcp::socket& socket, Send&& send) {
 
 		CommonResponse resp;
+
+		// auto handle = [self == shared_from_this](){
+
+		// }
 
 		resp = HandleHttpRequest(req);
 
@@ -145,7 +148,9 @@ class RequestHandler {
 
   private:
 	// CommonResponse HandleHttpRequest(std::string_view request);
+
 	CommonResponse HandleHttpRequest(HTTPRequest req);
+	StringResponse HandleAPIRequest(HTTPRequest req);
 	StringResponse HandleHttpGameJoinRequest(HTTPRequest req);
 	StringResponse HandleHttpGetPlayersRequest(HTTPRequest req);
 
@@ -166,7 +171,6 @@ class RequestHandler {
 	game_handler::GameHandler& game_handler_;
 	std::filesystem::path wwwroot_path_;
 	net::strand<net::io_context::executor_type> api_strand_;
-	
 };
 
 
