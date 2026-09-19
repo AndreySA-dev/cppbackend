@@ -34,6 +34,12 @@ add_executable(join_game
 	src/log.cpp
 	src/token.h
 	src/token.cpp
+	src/game_handler.h
+	src/game_handler.cpp
+	src/player.h
+	src/player.cpp
+	src/authenticator.h
+	src/authenticator.cpp
 )
 # target_link_libraries(game_server PRIVATE Threads::Threads)
 

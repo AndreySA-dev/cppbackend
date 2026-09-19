@@ -1,4 +1,7 @@
 #pragma once
+
+#include "authenticator.h"
+#include "game_handler.h"
 #include "http_server.h"
 #include "json_loader.h"
 #include "log.h"
@@ -19,6 +22,7 @@ namespace http = beast::http;
 namespace json = boost::json;
 namespace fs = std::filesystem;
 using namespace std::literals;
+namespace net = boost::asio;
 
 
 // Запрос, тело которого представлено в виде строки
@@ -63,94 +67,106 @@ struct ContentType {
 
 struct RequestsTexts {
 	RequestsTexts() = delete;
-	constexpr static std::string_view API = "/api"sv;
+	constexpr static std::string_view API = "/api/"sv;
 	constexpr static std::string_view API_MAPS = "/api/v1/maps"sv;
 	constexpr static std::string_view API_ONE_MAP = "/api/v1/maps/"sv;
+	constexpr static std::string_view API_GAME = "/api/v1/game"sv;
+	constexpr static std::string_view API_GAME_JOIN = "/api/v1/game/join"sv;
+	constexpr static std::string_view API_GAME_PLAYERS = "/api/v1/game/players"sv;
 };
 
-struct ResponseTexts {
-	ResponseTexts() = delete;
+struct ResponseTemplates {
+	ResponseTemplates() = delete;
 	constexpr static std::string_view MAP_NOT_FOUND = R"({"code" : "mapNotFound", "message" : "Map not found"})"sv;
+
 	constexpr static std::string_view BAD_REQUEST = R"({"code" : "badRequest", "message" : "Bad request"})"sv;
+
+	constexpr static std::string_view BAD_REQUEST_PARSE_BODY_ERROR =
+		R"({"code" : "badRequest", "message" : "Parse JSON body error"})"sv;
+
+	constexpr static std::string_view INVALID_ARGUMENT_INVALID_NAME =
+		R"({"code" : "invalidArgument", "message" : "Invalid name"})"sv;
+
+	constexpr static std::string_view INVALID_METHOD =
+		R"({"code" : "invalidMethod", "invalidMethod" : "Invalid method"})"sv;
+
+	constexpr static std::string_view INVALID_METHOD_ONLY_POST =
+		R"({"code" : "invalidMethod", "message" : "Only POST method is expected"})"sv;
+
 	constexpr static std::string_view FILE_NOT_FOUND = "File not found"sv;
+
 	constexpr static std::string_view FILE_INCORRECT_PATH = "Incorrect path to file"sv;
+
+	constexpr static std::string_view SERVER_INTERNAL_ERROR =
+		R"({"code" : "serverInternalError", "message" : "Server internal error"})"sv;
+
+	constexpr static std::string_view BEARER_FIELD_PREFIX = R"(Bearer )"sv;
+
+	constexpr static std::string_view INVALID_TOKEN_AUTH_HEADER_MISSING =
+		R"({"code" : "invalidToken", "message" : "Authorization header is missing"})"sv;
+
+	constexpr static std::string_view UNKNOWN_TOKEN_PLAYER_NOT_FOUND =
+		R"({"code" : "unknownToken", "message" : "Player token has not been found"})"sv;
+
 };
 
 
 class RequestHandler {
   public:
-	explicit RequestHandler(model::Game& game, const std::string& root_path) : game_{game}, wwwroot_path_{root_path} {}
+	explicit RequestHandler(model::Game& game, game_handler::GameHandler& game_handler, const std::string& root_path);
+
+	using HTTPRequest = http::request<http::string_body>;
 
 	RequestHandler(const RequestHandler&) = delete;
 	RequestHandler& operator=(const RequestHandler&) = delete;
 
 	template <typename Body, typename Allocator, typename Send>
-	http::header<false> operator()(
-		http::request<Body, http::basic_fields<Allocator>>&& req, const tcp::socket& socket, Send&& send) {
+	http::header<false> operator()(http::request<Body, http::basic_fields<Allocator>>&& req,
+		[[maybe_unused]] const tcp::socket& socket, Send&& send) {
 
 		CommonResponse resp;
 
-
-		const auto& target = req.target();
-
-
-		if (target == RequestsTexts::API_MAPS) {
-			// target = "/api/v1/maps/" -> get list of all maps
-
-			std::string maps = GetMapList();
-			resp = GetStringResponse(maps, http::status::ok, ContentType::APP_JSON, req.keep_alive());
-
-		} else if (target.starts_with(RequestsTexts::API_ONE_MAP) &&
-				   target.size() > RequestsTexts::API_ONE_MAP.size()) {
-			// target = "/api/v1/maps/...." -> get one map by id
-
-			auto map_id = target.substr(RequestsTexts::API_ONE_MAP.size());
-			auto maps = GetMap(std::string(map_id));
-
-			if (maps) {
-				resp = GetStringResponse(*maps, http::status::ok, ContentType::APP_JSON, req.keep_alive());
-			} else {
-				resp = GetStringResponse(
-					ResponseTexts::MAP_NOT_FOUND, http::status::not_found, ContentType::APP_JSON, req.keep_alive());
-			}
-
-		} else if (target.starts_with(RequestsTexts::API)) {
-
-			resp = GetStringResponse(
-				ResponseTexts::BAD_REQUEST, http::status::bad_request, ContentType::APP_JSON, req.keep_alive());
-
-		} else {
-			// get file from wwwroot directory
-
-			resp = GetFileResponse(std::string(target), req.keep_alive());
-
-		}
+		resp = HandleHttpRequest(req);
 
 		http::header<false> returned_resp;
+
 		std::visit([&returned_resp](auto&& result) { returned_resp = result; }, resp);
 
-		std::visit([&send](auto&& result) { send(std::forward<decltype(result)>(result)); }, resp);
+		std::visit(
+			[&req, &send](auto&& result) {
+				result.keep_alive(req.keep_alive());
+				send(std::forward<decltype(result)>(result));
+			},
+			resp);
 
 		return returned_resp;
 	}
 
 
   private:
-	std::string GetMapList();
+	// CommonResponse HandleHttpRequest(std::string_view request);
+	CommonResponse HandleHttpRequest(HTTPRequest req);
+	StringResponse HandleHttpGameJoinRequest(HTTPRequest req);
+	StringResponse HandleHttpGetPlayersRequest(HTTPRequest req);
 
-	std::optional<std::string> GetMap(const std::string& id);
+	// std::string GetMapList();
 
-	CommonResponse GetFileResponse(std::string target, bool keep_alive);
+	// std::optional<std::string> GetMap(const std::string& id);
 
-	CommonResponse GetStringResponse(
-		std::string_view text, http::status status, std::string_view type, bool keep_alive);
+	CommonResponse GetFileResponse(std::string target /*, bool keep_alive */);
+
+	StringResponse GetStringResponse(
+		std::string_view text, http::status status, std::string_view type /*, bool keep_alive */);
 
 	// CommonResponse GetResponse(std::string_view text, http::status status, bool keep_alive);
 
 	std::string_view GetTypeByExt(std::string_view ext) const;
 
 	model::Game& game_;
+	game_handler::GameHandler& game_handler_;
 	std::filesystem::path wwwroot_path_;
+	net::strand<net::io_context::executor_type> api_strand_;
+	
 };
 
 

@@ -1,7 +1,10 @@
+// curl -i -d "{\"userName\": \"Mikki\", \"mapId\": \"map1\"}" -H "Content-Type: application/json" -X POST "http://192.168.1.205:8080/api/v1/game/join"
+
+#include "sdk.h"
 #include "json_loader.h"
 #include "log.h"
 #include "request_handler.h"
-#include "sdk.h"
+#include "game_handler.h"
 
 
 #include <filesystem>
@@ -43,25 +46,23 @@ int main(int argc, const char* argv[]) {
 		return EXIT_FAILURE;
 	}
 
-
 	if (!std::filesystem::exists(argv[2])) {
 		std::cerr << "wwwroot directory is not found."sv << std::endl;
 		return EXIT_FAILURE;
 	}
-
+	
 	try {
+		
 		// 1. Загружаем карту из файла и построить модель игры
 		model::Game game = json_loader::LoadGame(argv[1]);
-
+		
 		const auto address = net::ip::make_address("0.0.0.0");
 		constexpr net::ip::port_type port = 8080;
-		// std::cout << "Hello! Server is starting at port " << port << std::endl;
-
-
+				
 		// 2. Инициализируем io_context
 		const unsigned num_threads = std::thread::hardware_concurrency();
 		net::io_context ioc(num_threads);
-
+		
 		// 3. Добавляем асинхронный обработчик сигналов SIGINT и SIGTERM
 		net::signal_set signals(ioc, SIGINT, SIGTERM);
 		signals.async_wait([&ioc](const sys::error_code& ec, [[maybe_unused]] int signal_number) {
@@ -70,9 +71,13 @@ int main(int argc, const char* argv[]) {
 				ioc.stop();
 			}
 		});
+		
 
+		game_handler::GameHandler game_handler(game);
+		
 		// 4. Создаём обработчик HTTP-запросов и связываем его с моделью игры
-		http_handler::RequestHandler handler{game, argv[2]};
+		std::string wwwroot_path = argv[2];
+		http_handler::RequestHandler handler{game, game_handler, wwwroot_path};
 
 		// Оборачиваем его в логирующий декоратор
 		http_handler::LoggingRequestHandler logging_handler{handler};
@@ -103,4 +108,5 @@ int main(int argc, const char* argv[]) {
 	}
 
 	srv_log::LogMessage({{"code", 0}}, "server exited"sv);
+	
 }

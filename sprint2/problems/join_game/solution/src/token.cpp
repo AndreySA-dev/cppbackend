@@ -1,6 +1,9 @@
 #include "token.h"
 
-Token TokenGenerator::GetNewToken() {
+
+namespace token {
+
+Token TokenHandler::GetNewToken() {
 
 	uint64_t part1 = generator1_();
 	uint64_t part2 = generator2_();
@@ -12,3 +15,13 @@ Token TokenGenerator::GetNewToken() {
 	NumToHexString(part2, token_str, 16);
 	return Token{std::move(token_str)};
 }
+
+bool TokenIsCorrect(const std::string& token) {
+	return token.size() == detail::TOCKEN_SIZE && token.find_first_not_of(detail::HEX_CHARS) == std::string::npos;
+}
+
+bool TokenIsCorrect(const Token& token) {
+	return TokenIsCorrect(*token);
+}
+
+} // namespace token
