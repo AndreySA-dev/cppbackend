@@ -9,6 +9,7 @@
 #include "perf_timer.h"
 
 #include <filesystem>
+#include <memory>
 #include <optional>
 #include <unordered_map>
 #include <variant>
@@ -88,8 +89,7 @@ struct ResponseTemplates {
 	constexpr static std::string_view INVALID_ARGUMENT_INVALID_NAME =
 		R"({"code" : "invalidArgument", "message" : "Invalid name"})"sv;
 
-	constexpr static std::string_view INVALID_METHOD =
-		R"({"code" : "invalidMethod", "message" : "Invalid method"})"sv;
+	constexpr static std::string_view INVALID_METHOD = R"({"code" : "invalidMethod", "message" : "Invalid method"})"sv;
 
 	constexpr static std::string_view INVALID_METHOD_ONLY_POST =
 		R"({"code" : "invalidMethod", "message" : "Only POST method is expected"})"sv;
@@ -111,7 +111,7 @@ struct ResponseTemplates {
 };
 
 
-class RequestHandler {
+class RequestHandler : public std::enable_shared_from_this<RequestHandler> {
   public:
 	explicit RequestHandler(
 		model::Game& game, game_handler::GameHandler& game_handler, const std::string& root_path, net::io_context& ctx);
@@ -122,36 +122,35 @@ class RequestHandler {
 	RequestHandler& operator=(const RequestHandler&) = delete;
 
 	template <typename Body, typename Allocator, typename Send>
-	http::header<false> operator()(http::request<Body, http::basic_fields<Allocator>>&& req,
+	void operator()(http::request<Body, http::basic_fields<Allocator>>&& req,
 		[[maybe_unused]] const tcp::socket& socket, Send&& send) {
 
 		auto target = req.target();
-		CommonResponse resp;
+		// CommonResponse resp;
 
 		if (target.starts_with(RequestsTexts::API)) {
 			// API request
 
-			resp = HandleAPIRequest(req);
+			// resp = HandleAPIRequest(req);
+			auto api_handler = [self = shared_from_this(), send, req = std::forward<decltype(req)>(req)]() {
+				auto resp = self->HandleAPIRequest(req);
+				resp.keep_alive(req.keep_alive());
+				send(std::move(resp));
+			};
+
+			return net::dispatch(api_strand_, api_handler);
+
+			// send(HandleAPIRequest(req));
 
 		} else {
 			// get a file from www directory
-
-			resp = GetFileResponse(std::string(target));
-
+			std::visit(
+				[&req, &send](auto&& result) {
+					result.keep_alive(req.keep_alive());
+					send(std::forward<decltype(result)>(result));
+				},
+				GetFileResponse(req));
 		}
-
-		http::header<false> returned_resp;
-
-		// std::visit([&returned_resp](auto&& result) { returned_resp = result; }, resp);
-
-		std::visit(
-			[&req, &send](auto&& result) {
-				result.keep_alive(req.keep_alive());
-				send(std::forward<decltype(result)>(result));
-			},
-			resp);
-
-		return returned_resp;
 	}
 
 
@@ -160,13 +159,13 @@ class RequestHandler {
 	StringResponse HandleHttpGameJoinRequest(HTTPRequest req);
 	StringResponse HandleHttpGetPlayersRequest(HTTPRequest req);
 
-	CommonResponse GetFileResponse(std::string target);
+	CommonResponse GetFileResponse(HTTPRequest req);
 
-	StringResponse GetStringResponse(
-		std::string_view text, http::status status, std::string_view type);
+	StringResponse GetStringResponse(std::string_view text, http::status status, std::string_view type);
 
 	std::string_view GetTypeByExt(std::string_view ext) const;
 
+	// bool keep_alive;
 	model::Game& game_;
 	game_handler::GameHandler& game_handler_;
 	std::filesystem::path wwwroot_path_;
@@ -181,7 +180,7 @@ class LoggingRequestHandler {
 	//  static void LogRequest(const Request& r);
 	//  static void LogResponse(const Response& r);
   public:
-	LoggingRequestHandler(RealHandler& handler) : decorated_(handler) {};
+	LoggingRequestHandler(RealHandler handler) : decorated_(handler) {};
 
 	template <typename Body, typename Allocator, typename Send>
 	void operator()(http::request<Body, http::basic_fields<Allocator>>&& req, const tcp::socket& socket, Send&& send) {
@@ -193,27 +192,27 @@ class LoggingRequestHandler {
 
 		perf_timer<std::chrono::microseconds> timer;
 
-		auto log_send = [timer, send](auto&& resp) mutable {
-			timer.stop();
+		auto log_send = [timer, send](auto&& resp) {
+			
+			auto duration = timer.get_duration();
 
 			std::string contnent_type_str;
 			if (const auto it = resp.find("Content-Type"); it != resp.cend()) {
 				contnent_type_str = std::string(it->value());
 			};
 
-			srv_log::LogMessage({{"response_time", timer.get_duration()}, {"code", resp.result_int()},
+			srv_log::LogMessage({{"response_time", duration}, {"code", resp.result_int()},
 									{"content_type", contnent_type_str}},
 				"response sent"sv);
 
 			send(std::move(resp));
 		};
 
-		decorated_(std::move(req), socket, log_send);
-
+		(*decorated_)(std::move(req), socket, log_send);
 	}
 
   private:
-	RealHandler& decorated_;
+	RealHandler decorated_;
 };
 
 } // namespace http_handler

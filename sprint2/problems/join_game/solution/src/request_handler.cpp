@@ -179,9 +179,9 @@ std::string_view RequestHandler::GetTypeByExt(std::string_view ext) const {
 	return ContentType::APP_OCTETSTREAM;
 }
 
-CommonResponse RequestHandler::GetFileResponse(std::string target) {
+CommonResponse RequestHandler::GetFileResponse(HTTPRequest req) {
 
-	target = helper::URLDecode(target);
+	auto target = helper::URLDecode(req.target());
 
 	if (target.size() == 0 || target[0] != '/') {
 		// request is empty or not start with '/'

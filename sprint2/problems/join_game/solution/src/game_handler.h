@@ -36,7 +36,7 @@ struct ResponseTemplates {
 class GameHandler {
   public:
 	explicit GameHandler(model::Game& game);
-	std::pair<json::value, game::Code> HandleAPIMapRequest(std::string_view req);
+	std::pair<json::value, game::Code> HandleAPIMapRequest(std::string_view target);
 	std::pair<json::value, game::Code> HandleGameJoinRequest(std::string_view name, std::string_view map_id);
 	std::pair<json::value, game::Code> HandleGetPlayersRequest();
 

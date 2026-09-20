@@ -12,17 +12,17 @@ using namespace literals;
 GameHandler::GameHandler(model::Game& game) : game_{game}, authenticator_{game} {}
 
 
-pair<json::value, game::Code> GameHandler::HandleAPIMapRequest(std::string_view req) {
+pair<json::value, game::Code> GameHandler::HandleAPIMapRequest(std::string_view target) {
 
-	if (req == RequestsTexts::API_MAPS) {
+	if (target == RequestsTexts::API_MAPS) {
 		// request -> "/api/v1/maps"
 
 		return {std::move(GetMapList()), game::Code::OK};
 
-	} else if (req.starts_with(RequestsTexts::API_ONE_MAP) && req.size() > RequestsTexts::API_ONE_MAP.size()) {
+	} else if (target.starts_with(RequestsTexts::API_ONE_MAP) && target.size() > RequestsTexts::API_ONE_MAP.size()) {
 		// request -> "/api/v1/map/general_map1"
 
-		auto map_id = req.substr(RequestsTexts::API_ONE_MAP.size()); // trim forward part "/api/v1/map/"
+		auto map_id = target.substr(RequestsTexts::API_ONE_MAP.size()); // trim forward part "/api/v1/map/"
 		auto maps = GetMap(std::string(map_id));
 
 		if (maps) {

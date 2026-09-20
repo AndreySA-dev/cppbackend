@@ -18,7 +18,7 @@ int HexValue(char c) {
 
 } // namespace
 
-std::string URLDecode(const std::string& encoded) {
+std::string URLDecode(const std::string_view encoded) {
 	// Create a buffer to hold the decoded string
 	std::string decoded;
 	decoded.reserve(encoded.size());
