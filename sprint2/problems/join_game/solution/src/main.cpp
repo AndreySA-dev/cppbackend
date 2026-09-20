@@ -1,4 +1,5 @@
 // curl -i -d "{\"userName\": \"Mikki\", \"mapId\": \"map1\"}" -H "Content-Type: application/json" -X POST "http://192.168.1.205:8080/api/v1/game/join"
+// curl -i -H "Authorization: Bearer 6516861d89ebfff147bf2eb2b5153ae1" -X GET "http://192.168.1.205:8080/api/v1/game/players"
 
 #include "sdk.h"
 #include "json_loader.h"
