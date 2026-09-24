@@ -164,6 +164,8 @@ class RequestHandler : public std::enable_shared_from_this<RequestHandler> {
 
 	std::pair<user::User*, auth::Code> Authorize(const HTTPRequest& req);
 
+	StringResponse GetAuthorizeErrorResponse(auth::Code auth_code);
+
 	CommonResponse GetFileResponse(HTTPRequest req);
 
 	StringResponse GetStringResponse(std::string_view text, http::status status, std::string_view type);
@@ -181,9 +183,6 @@ class RequestHandler : public std::enable_shared_from_this<RequestHandler> {
 template <class RealHandler>
 class LoggingRequestHandler {
 
-
-	//  static void LogRequest(const Request& r);
-	//  static void LogResponse(const Response& r);
   public:
 	LoggingRequestHandler(RealHandler handler) : decorated_(handler) {};
 

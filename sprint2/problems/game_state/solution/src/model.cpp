@@ -55,23 +55,24 @@ void Map::AddOffice(Office office) {
 }
 
 
-void Map::AddDog(Dog dog) {
+Dog& Map::AddDog(Dog dog) {
 
 	if (dog_id_to_idx.contains(dog.GetId())) {
 		throw std::invalid_argument("Duplicate dog");
 	}
 
 	const size_t idx = dogs_.size();
-	
-	Dog& d = dogs_.emplace_back(std::move(dog));
+
+	Dog& new_dog = dogs_.emplace_back(std::move(dog));
 
 	try {
-		dog_id_to_idx.emplace(d.GetId(), idx);
+		dog_id_to_idx.emplace(new_dog.GetId(), idx);
 	} catch (...) {
 		// Удаляем офис из вектора, если не удалось вставить в unordered_map
 		dogs_.pop_back();
 		throw;
 	}
+	return new_dog;
 }
 
 
@@ -123,6 +124,10 @@ Speed Dog::GetSpeed() const {
 
 Direction Dog::GetDirection() const {
 	return direction_;
+}
+
+void Dog::SetPosition(const Point pos) {
+	position_ = pos;
 }
 
 

@@ -31,11 +31,11 @@ std::string JStrToStr(const json::string str) {
 }
 
 model::Point JSONToPoint(const json::value& jv) {
-	return {jv.at("x").to_number<int>(), jv.at("y").to_number<int>()};
+	return {jv.at("x").to_number<model::Dimension>(), jv.at("y").to_number<model::Dimension>()};
 }
 
 model::Size JSONToSize(const json::value& jv) {
-	return {jv.at("w").to_number<int>(), jv.at("h").to_number<int>()};
+	return {jv.at("w").to_number<model::Dimension>(), jv.at("h").to_number<model::Dimension>()};
 }
 
 model::Rectangle JSONToRectangle(const json::value& jv) {
@@ -47,7 +47,7 @@ model::Building JSONToBuilding(const json::value& jv) {
 }
 
 model::Offset JSONToOffset(const json::value& jv) {
-	return {jv.at("offsetX").to_number<int>(), jv.at("offsetY").to_number<int>()};
+	return {jv.at("offsetX").to_number<model::Dimension>(), jv.at("offsetY").to_number<model::Dimension>()};
 }
 
 model::Office JSONToOffice(const json::value& jv) {
@@ -56,12 +56,12 @@ model::Office JSONToOffice(const json::value& jv) {
 }
 
 model::Road JSONToRoad(const json::object& jo) {
-	model::Point p1{jo.at("x0").to_number<int>(), jo.at("y0").to_number<int>()};
+	model::Point p1{jo.at("x0").to_number<model::Dimension>(), jo.at("y0").to_number<model::Dimension>()};
 
 	if (const auto& x1 = jo.if_contains("x1")) {
-		return model::Road(model::Road::HORIZONTAL, p1, x1->to_number<int>());
+		return model::Road(model::Road::HORIZONTAL, p1, x1->to_number<model::Dimension>());
 	} else if (const auto& y1 = jo.if_contains("y1")) {
-		return model::Road(model::Road::VERTICAL, p1, y1->to_number<int>());
+		return model::Road(model::Road::VERTICAL, p1, y1->to_number<model::Dimension>());
 	}
 	throw std::logic_error("JSON. Incorrect road second point parameter");
 }

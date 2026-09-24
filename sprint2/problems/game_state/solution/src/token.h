@@ -26,7 +26,7 @@ using Token = util::Tagged<std::string, detail::TokenTag>;
 using TokenHasher = util::TaggedHasher<Token>;
 
 bool TokenIsCorrect(const Token& token);
-bool TokenIsCorrect(const std::string& token);
+bool TokenIsCorrect(std::string token);
 
 class TokenHandler {
   public:

@@ -124,50 +124,10 @@ StringResponse RequestHandler::HandleHttpGetPlayersRequest(HTTPRequest req) {
 		return resp;
 	}
 
-	// // parse and check Authorization string as "Bearer 6516861d89ebfff147bf2eb2b5153ae1"
-	// auto auth_str = req["Authorization"];
-	// string_view auth_prefix = auth_str.substr(0, ResponseTemplates::BEARER_FIELD_PREFIX.size());
-	// string_view token_str;
-	// if (auth_prefix != ResponseTemplates::BEARER_FIELD_PREFIX &&
-	// 	auth_str.size() <= ResponseTemplates::BEARER_FIELD_PREFIX.size()) {
-	// 	resp = GetStringResponse(
-	// 		ResponseTemplates::INVALID_TOKEN_AUTH_HEADER_MISSING, http::status::unauthorized, ContentType::APP_JSON);
-	// 	resp.set(http::field::cache_control, "no-cache"sv);
-	// 	return resp;
-	// }
-
-	// // Get player with whit requested token
-	// token_str = auth_str.substr(ResponseTemplates::BEARER_FIELD_PREFIX.size());
-	// auto player_result = game_handler_.GetAuthenticator().GetPlayer(token::Token(std::string(token_str)));
-
-	// // Token has incorrect format
-	// if (player_result.second == auth::Code::TOKEN_IS_INCORRECT) {
-	// 	resp = GetStringResponse(
-	// 		ResponseTemplates::INVALID_TOKEN_AUTH_HEADER_MISSING, http::status::unauthorized, ContentType::APP_JSON);
-	// 	resp.set(http::field::cache_control, "no-cache"sv);
-	// 	return resp;
-	// }
-
-	// // User with this token has not found
-	// if (player_result.second == auth::Code::PLAYER_NOT_FOUND) {
-	// 	resp = GetStringResponse(
-	// 		ResponseTemplates::UNKNOWN_TOKEN_PLAYER_NOT_FOUND, http::status::unauthorized, ContentType::APP_JSON);
-	// 	resp.set(http::field::cache_control, "no-cache"sv);
-	// 	return resp;
-	// }
-
 	auto [_, auth_code] = Authorize(req);
 
 	if (auth_code != auth::Code::OK) {
-		if (auth_code == auth::Code::INVALID_TOKEN_HEADER_MISSING || auth_code == auth::Code::TOKEN_IS_INCORRECT) {
-			resp = GetStringResponse(ResponseTemplates::INVALID_TOKEN_AUTH_HEADER_MISSING, http::status::unauthorized,
-				ContentType::APP_JSON);
-		} else if (auth_code == auth::Code::PLAYER_NOT_FOUND) {
-			resp = GetStringResponse(
-				ResponseTemplates::UNKNOWN_TOKEN_PLAYER_NOT_FOUND, http::status::unauthorized, ContentType::APP_JSON);
-		}
-		resp.set(http::field::cache_control, "no-cache"sv);
-		return resp;
+		return GetAuthorizeErrorResponse(auth_code);
 	}
 
 	// get full list of players
@@ -179,25 +139,33 @@ StringResponse RequestHandler::HandleHttpGetPlayersRequest(HTTPRequest req) {
 
 StringResponse RequestHandler::HandleHttpGetGameStateRequest(HTTPRequest req) {
 
-	auto [user_ptr, auth_code] = Authorize(req);
-	if (auth_code != auth::Code::OK) {
-		exit(1); //// TO-DO
+	StringResponse resp;
+	// check method GET or HEAD
+	if (!(req.method() == http::verb::get || req.method() == http::verb::head)) {
+		resp = GetStringResponse(
+			ResponseTemplates::INVALID_METHOD, http::status::method_not_allowed, ContentType::APP_JSON);
+		resp.set(http::field::cache_control, "no-cache"sv);
+		resp.set(http::field::allow, "GET, HEAD");
+		return resp;
 	}
 
+	auto [user_ptr, auth_code] = Authorize(req);
+	if (auth_code != auth::Code::OK) {
+		return GetAuthorizeErrorResponse(auth_code);
+	}
 
 	auto handle_result = game_handler_.HandleGetStateRequest(user_ptr);
 
-	StringResponse resp =
-		GetStringResponse(json::serialize(handle_result.first), http::status::ok, ContentType::APP_JSON);
+	resp = GetStringResponse(json::serialize(handle_result.first), http::status::ok, ContentType::APP_JSON);
 	resp.set(http::field::cache_control, "no-cache"sv);
 	return resp;
 }
+
 
 std::pair<user::User*, auth::Code> RequestHandler::Authorize(const HTTPRequest& req) {
 
 	auto auth_str = req["Authorization"];
 	// Check that first part of string is "Bearer: "
-	// string_view auth_prefix = auth_str.substr(0, ResponseTemplates::BEARER_FIELD_PREFIX.size());
 	if (auth_str.substr(0, ResponseTemplates::BEARER_FIELD_PREFIX.size()) != ResponseTemplates::BEARER_FIELD_PREFIX) {
 		return {nullptr, auth::Code::INVALID_TOKEN_HEADER_MISSING};
 	}
@@ -208,6 +176,22 @@ std::pair<user::User*, auth::Code> RequestHandler::Authorize(const HTTPRequest& 
 	auto [player_ptr, code] = game_handler_.GetAuthenticator().GetUser(token::Token(std::string(token_str)));
 
 	return {player_ptr, code};
+}
+
+
+StringResponse RequestHandler::GetAuthorizeErrorResponse(auth::Code auth_code) {
+
+	StringResponse resp;
+	if (auth_code == auth::Code::INVALID_TOKEN_HEADER_MISSING || auth_code == auth::Code::TOKEN_IS_INCORRECT) {
+		resp = GetStringResponse(
+			ResponseTemplates::INVALID_TOKEN_AUTH_HEADER_MISSING, http::status::unauthorized, ContentType::APP_JSON);
+	} else if (auth_code == auth::Code::PLAYER_NOT_FOUND) {
+		resp = GetStringResponse(
+			ResponseTemplates::UNKNOWN_TOKEN_PLAYER_NOT_FOUND, http::status::unauthorized, ContentType::APP_JSON);
+	}
+	resp.set(http::field::cache_control, "no-cache"sv);
+	return resp;
+
 }
 
 
@@ -236,7 +220,7 @@ CommonResponse RequestHandler::GetFileResponse(HTTPRequest req) {
 	if (target.size() == 0 || target[0] != '/') {
 		// request is empty or not start with '/'
 		return {GetStringResponse("Error: incorrect resource in request.", http::status::bad_request,
-			ContentType::TEXT_PLAIN /*, keep_alive */)};
+			ContentType::TEXT_PLAIN)};
 	}
 
 	fs::path req_path;

@@ -1,6 +1,5 @@
 #include "helper.h"
 #include <stdexcept>
-#include <mutex>
 
 // Helper function to convert a hexadecimal character to an integer
 namespace helper {
@@ -49,14 +48,16 @@ std::string URLDecode(const std::string_view encoded) {
 	return decoded;
 }
 
-int random_int(int min, int max) {
-	static std::mutex mut;
-    static std::random_device rd;
-    static std::mt19937 gen(rd());
-    std::lock_guard<std::mutex> lock(mut);
-    std::uniform_real_distribution<> dist(min, max);
+// int random_int(int min, int max) {
+// 	static std::mutex mut;
+//     static std::random_device rd;
+//     static std::mt19937 gen(rd());
+//     std::lock_guard<std::mutex> lock(mut);
+//     std::uniform_real_distribution<> dist(min, max);
 
-    return dist(gen);
-}
+//     return dist(gen);
+// }
+
+
 
 } // namespace helper

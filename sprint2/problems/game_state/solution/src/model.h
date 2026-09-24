@@ -7,7 +7,7 @@
 
 namespace model {
 
-using Dimension = int;
+using Dimension = double;
 using Coord = Dimension;
 
 
@@ -110,7 +110,7 @@ class Office {
 
 
 enum class Direction { NORTH = 0, EAST, SOUTH, WEST };
-const char* const DirectionTitles = "NESW";
+const char* const DirectionTitles = "URDL";
 char DirectionToChar(model::Direction dir);
 
 class Dog {
@@ -122,7 +122,8 @@ class Dog {
 	Point GetPosition() const;
 	Speed GetSpeed() const;
 	Direction GetDirection() const;
-
+	
+	void SetPosition(const Point pos);
 
   private:
 	Point position_ = {0, 0};
@@ -162,7 +163,7 @@ class Map {
 
 	void AddOffice(Office office);
 
-	void AddDog(Dog dog);
+	Dog& AddDog(Dog dog);
 
   private:
 	using OfficeIdToIndex = std::unordered_map<Office::Id, size_t, util::TaggedHasher<Office::Id>>;

@@ -1,6 +1,9 @@
 #include "game_handler.h"
 #include "json_loader.h"
 #include "model.h"
+#include "helper.h"
+
+
 #include <iostream>
 
 namespace game_handler {
@@ -52,7 +55,28 @@ pair<json::value, game::Code> GameHandler::HandleGameJoinRequest(std::string_vie
 		}
 
 		auto player_id = player_ptr->GetId();
-		map_ptr->AddDog(model::Dog::Id(*player_id));
+
+		auto& new_dog = map_ptr->AddDog(model::Dog::Id(*player_id));
+
+		// generate Dog random position in random road
+		model::Point dog_pos = {0, 0};
+		size_t road_num = map_ptr->GetRoads().size();
+		if (road_num > 0) {
+			auto& road = map_ptr->GetRoads()[helper::GetRandomNum<int>(0, road_num - 1)];
+			auto road_len = road.GetLength();
+			if (road_len > 0) {
+				model::Dimension shift = helper::GetRandomNum<model::Dimension>(0.0, road_len);
+				if (road.IsHorizontal()) {
+					dog_pos.x = std::min(road.GetStart().x, road.GetEnd().x) + shift;
+					dog_pos.y = road.GetStart().y;
+				} else {
+					dog_pos.y = std::min(road.GetStart().y, road.GetEnd().y) + shift;
+					dog_pos.x = road.GetStart().x;
+				}
+
+			}
+		}
+		new_dog.SetPosition(dog_pos);
 
 		return {{{"authToken", *token}, {"playerId", *player_id}}, game::Code::OK};
 
@@ -61,7 +85,6 @@ pair<json::value, game::Code> GameHandler::HandleGameJoinRequest(std::string_vie
 	}
 
 	return {{}, game::Code::ANOTHER_ERROR};
-
 }
 
 pair<json::value, game::Code> GameHandler::HandleGetPlayersRequest() {
@@ -87,7 +110,6 @@ std::pair<json::value, game::Code> GameHandler::HandleGetStateRequest(user::User
 	json_loader::MapToDogsJSON(*map_ptr, jo);
 
 	return {jo, game::Code::OK};
-
 }
 
 auth::Authenticator& GameHandler::GetAuthenticator() {

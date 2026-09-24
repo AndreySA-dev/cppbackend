@@ -1,5 +1,5 @@
 #include "token.h"
-
+#include <boost/algorithm/string.hpp>
 
 namespace token {
 
@@ -16,7 +16,8 @@ Token TokenHandler::GetNewToken() {
 	return Token{std::move(token_str)};
 }
 
-bool TokenIsCorrect(const std::string& token) {
+bool TokenIsCorrect(std::string token) {
+	boost::algorithm::to_lower(token);
 	return token.size() == detail::TOCKEN_SIZE && token.find_first_not_of(detail::HEX_CHARS) == std::string::npos;
 }
 
