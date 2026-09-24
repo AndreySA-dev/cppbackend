@@ -50,6 +50,10 @@ StringResponse RequestHandler::HandleAPIRequest(HTTPRequest req) {
 
 		resp = HandleHttpGetPlayersRequest(req);
 
+	} else if (target.starts_with(RequestsTexts::API_GAME_STATE)) {
+		// API requst get all players =============================
+
+		resp = HandleHttpGetGameStateRequest(req);
 	}
 
 	return resp;
@@ -120,48 +124,94 @@ StringResponse RequestHandler::HandleHttpGetPlayersRequest(HTTPRequest req) {
 		return resp;
 	}
 
-	// parse and check Authorization string as "Bearer 6516861d89ebfff147bf2eb2b5153ae1"
-	auto auth_str = req["Authorization"];
-	string_view auth_prefix = auth_str.substr(0, ResponseTemplates::BEARER_FIELD_PREFIX.size());
-	string_view token_str;
-	if (auth_prefix != ResponseTemplates::BEARER_FIELD_PREFIX &&
-		auth_str.size() <= ResponseTemplates::BEARER_FIELD_PREFIX.size()) {
-		resp = GetStringResponse(
-			ResponseTemplates::INVALID_TOKEN_AUTH_HEADER_MISSING, http::status::unauthorized, ContentType::APP_JSON);
-		resp.set(http::field::cache_control, "no-cache"sv);
-		return resp;
-	}
+	// // parse and check Authorization string as "Bearer 6516861d89ebfff147bf2eb2b5153ae1"
+	// auto auth_str = req["Authorization"];
+	// string_view auth_prefix = auth_str.substr(0, ResponseTemplates::BEARER_FIELD_PREFIX.size());
+	// string_view token_str;
+	// if (auth_prefix != ResponseTemplates::BEARER_FIELD_PREFIX &&
+	// 	auth_str.size() <= ResponseTemplates::BEARER_FIELD_PREFIX.size()) {
+	// 	resp = GetStringResponse(
+	// 		ResponseTemplates::INVALID_TOKEN_AUTH_HEADER_MISSING, http::status::unauthorized, ContentType::APP_JSON);
+	// 	resp.set(http::field::cache_control, "no-cache"sv);
+	// 	return resp;
+	// }
 
-	// Get player with whit requested token
-	token_str = auth_str.substr(ResponseTemplates::BEARER_FIELD_PREFIX.size());
-	auto player_result = game_handler_.GetAuthenticator().GetPlayer(token::Token(std::string(token_str)));
+	// // Get player with whit requested token
+	// token_str = auth_str.substr(ResponseTemplates::BEARER_FIELD_PREFIX.size());
+	// auto player_result = game_handler_.GetAuthenticator().GetPlayer(token::Token(std::string(token_str)));
 
-	// Token has incorrect format
-	if (player_result.second == auth::Code::TOKEN_IS_INCORRECT) {
-		resp = GetStringResponse(
-			ResponseTemplates::INVALID_TOKEN_AUTH_HEADER_MISSING, http::status::unauthorized, ContentType::APP_JSON);
-		resp.set(http::field::cache_control, "no-cache"sv);
-		return resp;
-	}
+	// // Token has incorrect format
+	// if (player_result.second == auth::Code::TOKEN_IS_INCORRECT) {
+	// 	resp = GetStringResponse(
+	// 		ResponseTemplates::INVALID_TOKEN_AUTH_HEADER_MISSING, http::status::unauthorized, ContentType::APP_JSON);
+	// 	resp.set(http::field::cache_control, "no-cache"sv);
+	// 	return resp;
+	// }
 
-	// User with this token has not found
-	if (player_result.second == auth::Code::PLAYER_NOT_FOUND) {
-		resp = GetStringResponse(
-			ResponseTemplates::UNKNOWN_TOKEN_PLAYER_NOT_FOUND, http::status::unauthorized, ContentType::APP_JSON);
+	// // User with this token has not found
+	// if (player_result.second == auth::Code::PLAYER_NOT_FOUND) {
+	// 	resp = GetStringResponse(
+	// 		ResponseTemplates::UNKNOWN_TOKEN_PLAYER_NOT_FOUND, http::status::unauthorized, ContentType::APP_JSON);
+	// 	resp.set(http::field::cache_control, "no-cache"sv);
+	// 	return resp;
+	// }
+
+	auto [_, auth_code] = Authorize(req);
+
+	if (auth_code != auth::Code::OK) {
+		if (auth_code == auth::Code::INVALID_TOKEN_HEADER_MISSING || auth_code == auth::Code::TOKEN_IS_INCORRECT) {
+			resp = GetStringResponse(ResponseTemplates::INVALID_TOKEN_AUTH_HEADER_MISSING, http::status::unauthorized,
+				ContentType::APP_JSON);
+		} else if (auth_code == auth::Code::PLAYER_NOT_FOUND) {
+			resp = GetStringResponse(
+				ResponseTemplates::UNKNOWN_TOKEN_PLAYER_NOT_FOUND, http::status::unauthorized, ContentType::APP_JSON);
+		}
 		resp.set(http::field::cache_control, "no-cache"sv);
 		return resp;
 	}
 
 	// get full list of players
-	auto [players_j, code] = game_handler_.HandleGetPlayersRequest();
+	auto [players_j, get_code] = game_handler_.HandleGetPlayersRequest();
 	resp = GetStringResponse(json::serialize(players_j), http::status::ok, ContentType::APP_JSON);
 	resp.set(http::field::cache_control, "no-cache"sv);
 	return resp;
 }
 
+StringResponse RequestHandler::HandleHttpGetGameStateRequest(HTTPRequest req) {
 
-StringResponse RequestHandler::GetStringResponse(
-	std::string_view text, http::status status, std::string_view type) {
+	auto [user_ptr, auth_code] = Authorize(req);
+	if (auth_code != auth::Code::OK) {
+		exit(1); //// TO-DO
+	}
+
+
+	auto handle_result = game_handler_.HandleGetStateRequest(user_ptr);
+
+	StringResponse resp =
+		GetStringResponse(json::serialize(handle_result.first), http::status::ok, ContentType::APP_JSON);
+	resp.set(http::field::cache_control, "no-cache"sv);
+	return resp;
+}
+
+std::pair<user::User*, auth::Code> RequestHandler::Authorize(const HTTPRequest& req) {
+
+	auto auth_str = req["Authorization"];
+	// Check that first part of string is "Bearer: "
+	// string_view auth_prefix = auth_str.substr(0, ResponseTemplates::BEARER_FIELD_PREFIX.size());
+	if (auth_str.substr(0, ResponseTemplates::BEARER_FIELD_PREFIX.size()) != ResponseTemplates::BEARER_FIELD_PREFIX) {
+		return {nullptr, auth::Code::INVALID_TOKEN_HEADER_MISSING};
+	}
+
+	// get second part auth string after "Bearer "
+	string_view token_str = auth_str.substr(ResponseTemplates::BEARER_FIELD_PREFIX.size());
+	// Get player with whit requested token
+	auto [player_ptr, code] = game_handler_.GetAuthenticator().GetUser(token::Token(std::string(token_str)));
+
+	return {player_ptr, code};
+}
+
+
+StringResponse RequestHandler::GetStringResponse(std::string_view text, http::status status, std::string_view type) {
 
 	StringResponse response(status, 11);
 	response.body() = text;
@@ -209,7 +259,6 @@ CommonResponse RequestHandler::GetFileResponse(HTTPRequest req) {
 
 			return {GetStringResponse(
 				"Error: incorrect resource in request.", http::status::bad_request, ContentType::TEXT_PLAIN)};
-				
 		}
 
 	} else {

@@ -13,6 +13,7 @@
 #include <optional>
 #include <unordered_map>
 #include <variant>
+#include <utility>
 
 namespace http_handler {
 
@@ -73,6 +74,7 @@ struct RequestsTexts {
 	constexpr static std::string_view API_GAME = "/api/v1/game"sv;
 	constexpr static std::string_view API_GAME_JOIN = "/api/v1/game/join"sv;
 	constexpr static std::string_view API_GAME_PLAYERS = "/api/v1/game/players"sv;
+	constexpr static std::string_view API_GAME_STATE = "/api/v1/game/state"sv;
 };
 
 
@@ -158,6 +160,9 @@ class RequestHandler : public std::enable_shared_from_this<RequestHandler> {
 	StringResponse HandleAPIRequest(HTTPRequest req);
 	StringResponse HandleHttpGameJoinRequest(HTTPRequest req);
 	StringResponse HandleHttpGetPlayersRequest(HTTPRequest req);
+	StringResponse HandleHttpGetGameStateRequest(HTTPRequest req);
+
+	std::pair<user::User*, auth::Code> Authorize(const HTTPRequest& req);
 
 	CommonResponse GetFileResponse(HTTPRequest req);
 

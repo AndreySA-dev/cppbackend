@@ -4,6 +4,7 @@
 
 #include <fstream>
 #include <string_view>
+#include <string>
 
 #include <boost/json.hpp>
 
@@ -136,6 +137,31 @@ void RoadToJSON(const model::Road& road, json::object& jo) {
 
 } // namespace
 
+
+void DogToJSON(const model::Dog& dog, json::object& jo) {
+
+	jo["id"] = *dog.GetId();
+	json::value().emplace_double() = 12.213;
+	jo["pos"] = json::array({ json::value(dog.GetPosition().x), json::value(dog.GetPosition().y)});
+	jo["speed"] = json::array({dog.GetSpeed().h, dog.GetSpeed().v});
+	jo["dir"] = std::string(1, DirectionToChar(dog.GetDirection()));
+
+}
+
+
+void MapToDogsJSON(const model::Map& map, json::object& jo) {
+
+	json::object dogs_jo;
+	for (const auto& dog : map.GetDogs()) {
+		json::object dog_jo;
+		DogToJSON(dog, dog_jo);
+		dogs_jo.emplace(std::to_string(*dog.GetId()), std::move(dog_jo));
+	}
+	jo["players"] = std::move(dogs_jo);
+
+}
+
+
 void MapInfoToJSON(const model::Map& map, json::object& jo) {
 	jo["id"] = *map.GetId();
 	jo["name"] = map.GetName();
@@ -143,7 +169,7 @@ void MapInfoToJSON(const model::Map& map, json::object& jo) {
 
 
 void MapToJSON(const model::Map& map, json::object& jo) {
-	
+
 	MapInfoToJSON(map, jo);
 
 
@@ -153,21 +179,20 @@ void MapToJSON(const model::Map& map, json::object& jo) {
 		RoadToJSON(road, new_jroad);
 		jroads.push_back(std::move(new_jroad));
 	}
-	
+
 	auto& jbuildings = jo.emplace("buildings", json::array{}).first->value().as_array();
 	for (const auto& building : map.GetBuildings()) {
 		json::object new_jbuilding;
 		BuildingToJSON(building, new_jbuilding);
 		jbuildings.push_back(std::move(new_jbuilding));
 	}
-	
+
 	auto& joffices = jo.emplace("offices", json::array{}).first->value().as_array();
 	for (const auto& office : map.GetOffices()) {
 		json::object new_joffice;
 		OfficeToJSON(office, new_joffice);
 		joffices.push_back(std::move(new_joffice));
 	}
-	
 }
 
 

@@ -3,7 +3,7 @@
 #include "authenticator.h"
 #include "codes.h"
 #include "model.h"
-#include "player.h"
+#include "user.h"
 
 #include <boost/json.hpp>
 #include <optional>
@@ -37,8 +37,9 @@ class GameHandler {
   public:
 	explicit GameHandler(model::Game& game);
 	std::pair<json::value, game::Code> HandleAPIMapRequest(std::string_view target);
-	std::pair<json::value, game::Code> HandleGameJoinRequest(std::string_view name, std::string_view map_id);
+	std::pair<json::value, game::Code> HandleGameJoinRequest(std::string_view name, std::string_view map_id_sv);
 	std::pair<json::value, game::Code> HandleGetPlayersRequest();
+	std::pair<json::value, game::Code> HandleGetStateRequest(user::User* user_ptr);
 
 	auth::Authenticator& GetAuthenticator();
 

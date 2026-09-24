@@ -37,35 +37,54 @@ pair<json::value, game::Code> GameHandler::HandleAPIMapRequest(std::string_view 
 }
 
 
-pair<json::value, game::Code> GameHandler::HandleGameJoinRequest(
-	std::string_view name, std::string_view map_id) {
+pair<json::value, game::Code> GameHandler::HandleGameJoinRequest(std::string_view name, std::string_view map_id_sv) {
 
-	auto [token, code] = authenticator_.AddPlayer(name, model::Map::Id(string(map_id)));
-	json::value jv;
+	model::Map::Id map_id(std::string{map_id_sv});
+	auto [token, code] = authenticator_.AddUser(name, map_id);
 
 	if (code == auth::Code::OK) {
 
-		auto id = authenticator_.GetPlayer(token).first->GetId();
-		return {{{"authToken", *token}, {"playerId", *id}}, game::Code::OK};
+		auto player_ptr = authenticator_.GetUser(token).first;
+		auto map_ptr = game_.FindMap(map_id);
+
+		if (!player_ptr || !map_ptr) {
+			return {{}, game::Code::ANOTHER_ERROR};
+		}
+
+		auto player_id = player_ptr->GetId();
+		map_ptr->AddDog(model::Dog::Id(*player_id));
+
+		return {{{"authToken", *token}, {"playerId", *player_id}}, game::Code::OK};
 
 	} else if (code == auth::Code::MAP_NOT_FOUND) {
-
 		return {{}, game::Code::MAP_NOT_FOUND};
 	}
 
 	return {{}, game::Code::ANOTHER_ERROR};
+
 }
 
 pair<json::value, game::Code> GameHandler::HandleGetPlayersRequest() {
-	
+
 	json::object jo;
 
 	size_t i = 0;
-	for (auto& player : authenticator_.GetPlayers()) {
+	for (auto& player : authenticator_.GetUsers()) {
 		string id_str = std::to_string(i);
 		jo.emplace(id_str, json::object{{"name", player.GetName()}});
 		++i;
 	}
+
+	return {jo, game::Code::OK};
+}
+
+std::pair<json::value, game::Code> GameHandler::HandleGetStateRequest(user::User* user_ptr) {
+
+	json::object jo;
+
+	auto map_ptr = user_ptr->GetMap();
+
+	json_loader::MapToDogsJSON(*map_ptr, jo);
 
 	return {jo, game::Code::OK};
 

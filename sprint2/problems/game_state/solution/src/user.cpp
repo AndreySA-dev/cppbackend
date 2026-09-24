@@ -1,39 +1,49 @@
-#include "player.h"
+#include "user.h"
 
 #include <limits>
 #include <stdexcept>
 
-namespace player {
+namespace user {
 
 using namespace std;
 using namespace std::literals;
 
-size_t Player::next_id_ = 0;
-Player::Id Player::noid = Player::Id{std::numeric_limits<size_t>::max()};
+size_t User::next_id_ = 0;
+User::Id User::noid = User::Id{std::numeric_limits<size_t>::max()};
 
-Player::Player(std::string name) : name_{std::move(name)}, id_{Player::Id(next_id_++)} {}
+User::User(std::string name) : name_{std::move(name)}, id_{User::Id(next_id_++)} {}
 
-Player::Player(Player&& other) : name_(std::move(other.name_)), id_(std::move(other.id_)) {
+User::User(User&& other) : name_(std::move(other.name_)), id_(std::move(other.id_)) {
 
-	other.id_ = player::Player::noid;
+	other.id_ = user::User::noid;
 }
 
-Player& Player::operator=(Player&& other) {
+User& User::operator=(User&& other) {
 	name_ = std::move(other.name_);
 	id_ = std::move(other.id_);
-	other.id_ = player::Player::noid;
+	other.id_ = user::User::noid;
 	return *this;
 }
 
-const std::string& Player::GetName() const noexcept {
+const std::string& User::GetName() const noexcept {
 	return name_;
 }
 
-Player::Id Player::GetId() const noexcept {
+User::Id User::GetId() const noexcept {
 	return id_;
 }
 
-Player* Players::AddPlayer(std::string_view name) {
+
+void User::SetMap(const model::Map* map_ptr) {
+	map_ptr_ = map_ptr;
+}
+
+const model::Map* User::GetMap() const {
+	return map_ptr_;
+}
+
+
+User* Users::AddUser(std::string_view name) {
 
 
 	if (player_name_to_index_.find(name) != player_name_to_index_.cend()) {
@@ -62,7 +72,7 @@ Player* Players::AddPlayer(std::string_view name) {
 	return nullptr;
 }
 
-Player* Players::GetPlayer(Player::Id id) {
+User* Users::GetUser(User::Id id) {
 	if (auto it = player_id_to_index_.find(id); it != player_id_to_index_.cend()) {
 		return &players_[it->second];
 	}
@@ -70,22 +80,22 @@ Player* Players::GetPlayer(Player::Id id) {
 }
 
 
-Players::iterator Players::begin() {
+Users::iterator Users::begin() {
 	return players_.begin();
 }
 
 
-const Players::const_iterator Players::cbegin() const {
+const Users::const_iterator Users::cbegin() const {
 	return players_.cbegin();
 }
 
 
-Players::iterator Players::end() {
+Users::iterator Users::end() {
 	return players_.end();
 }
 
 
-const Players::const_iterator Players::cend() const {
+const Users::const_iterator Users::cend() const {
 	return players_.cend();
 }
 

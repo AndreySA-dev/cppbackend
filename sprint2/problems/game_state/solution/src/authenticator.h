@@ -1,7 +1,7 @@
 #pragma once
 
 #include "model.h"
-#include "player.h"
+#include "user.h"
 #include "codes.h"
 
 #include <deque>
@@ -22,15 +22,15 @@ class Authenticator {
 	// };
 
 	Authenticator(model::Game& game);
-	std::pair<token::Token, Code> AddPlayer(std::string_view name, model::Map::Id map_id);
-	std::pair<player::Player*, Code> GetPlayer(token::Token token);
-	player::Players& GetPlayers();
+	std::pair<token::Token, Code> AddUser(std::string_view name, model::Map::Id map_id);
+	std::pair<user::User*, Code> GetUser(token::Token token);
+	user::Users& GetUsers();
 	bool TokenIsCorrect(const token::Token& token);
 
 
   private:
-	std::unordered_map<token::Token, player::Player::Id, token::TokenHasher> tokens_to_player_id_;
-	player::Players players_;
+	std::unordered_map<token::Token, user::User::Id, token::TokenHasher> tokens_to_users_id_;
+	user::Users users_;
 	token::TokenHandler generator_;
 	model::Game& game_;
 };

@@ -9,7 +9,7 @@ namespace model {
 
 using Dimension = int;
 using Coord = Dimension;
-using Speed = double;
+
 
 struct Point {
 	Coord x, y;
@@ -28,6 +28,10 @@ struct Offset {
 	Dimension dx, dy;
 };
 
+struct Speed {
+	double h, v;
+};
+
 class Road {
 	struct HorizontalTag {
 		explicit HorizontalTag() = default;
@@ -44,6 +48,8 @@ class Road {
 	Road(HorizontalTag, Point start, Coord end_x) noexcept : start_{start}, end_{end_x, start.y} {}
 
 	Road(VerticalTag, Point start, Coord end_y) noexcept : start_{start}, end_{start.x, end_y} {}
+
+	Dimension GetLength() const noexcept;
 
 	bool IsHorizontal() const noexcept {
 		return start_.y == end_.y;
@@ -103,17 +109,26 @@ class Office {
 };
 
 
-enum class Direction { SOUTH, NORTH, EAST, WEST };
-
+enum class Direction { NORTH = 0, EAST, SOUTH, WEST };
+const char* const DirectionTitles = "NESW";
+char DirectionToChar(model::Direction dir);
 
 class Dog {
   public:
-	using Id = util::Tagged<std::string, Dog>;
-	
+	using Id = util::Tagged<size_t, Dog>;
+
+	Dog(Id id);
+	Id GetId() const;
+	Point GetPosition() const;
+	Speed GetSpeed() const;
+	Direction GetDirection() const;
+
+
   private:
-	Point position_;
-	Speed speed_ = 0.0;
-	Direction direction = Direction::NORTH;
+	Point position_ = {0, 0};
+	Speed speed_ = {0.0, 0.0};
+	Direction direction_ = Direction::NORTH;
+	Id id_;
 };
 
 
@@ -123,6 +138,7 @@ class Map {
 	using Roads = std::vector<Road>;
 	using Buildings = std::vector<Building>;
 	using Offices = std::vector<Office>;
+	using Dogs = std::vector<Dog>;
 
 	Map(Id id, std::string name) noexcept : id_(std::move(id)), name_(std::move(name)) {}
 
@@ -130,34 +146,27 @@ class Map {
 		return id_;
 	}
 
-	const std::string& GetName() const noexcept {
-		return name_;
-	}
+	const std::string& GetName() const noexcept;
 
-	const Buildings& GetBuildings() const noexcept {
-		return buildings_;
-	}
+	const Buildings& GetBuildings() const noexcept;
 
-	const Roads& GetRoads() const noexcept {
-		return roads_;
-	}
+	const Roads& GetRoads() const noexcept;
 
-	const Offices& GetOffices() const noexcept {
-		return offices_;
-	}
+	const Offices& GetOffices() const noexcept;
 
-	void AddRoad(const Road& road) {
-		roads_.emplace_back(road);
-	}
+	const Dogs& GetDogs() const noexcept;
 
-	void AddBuilding(const Building& building) {
-		buildings_.emplace_back(building);
-	}
+	void AddRoad(const Road& road);
+
+	void AddBuilding(const Building& building);
 
 	void AddOffice(Office office);
 
+	void AddDog(Dog dog);
+
   private:
 	using OfficeIdToIndex = std::unordered_map<Office::Id, size_t, util::TaggedHasher<Office::Id>>;
+	using DogIdToIndex = std::unordered_map<Dog::Id, size_t, util::TaggedHasher<Dog::Id>>;
 
 	Id id_;
 	std::string name_;
@@ -166,7 +175,11 @@ class Map {
 
 	OfficeIdToIndex warehouse_id_to_index_;
 	Offices offices_;
+
+	DogIdToIndex dog_id_to_idx;
+	Dogs dogs_;
 };
+
 
 class Game {
   public:
@@ -178,12 +191,8 @@ class Game {
 		return maps_;
 	}
 
-	const Map* FindMap(const Map::Id& id) const noexcept {
-		if (auto it = map_id_to_index_.find(id); it != map_id_to_index_.end()) {
-			return &maps_.at(it->second);
-		}
-		return nullptr;
-	}
+	const Map* FindMap(const Map::Id& id) const noexcept;
+	Map* FindMap(const Map::Id& id) noexcept;
 
   private:
 	using MapIdHasher = util::TaggedHasher<Map::Id>;

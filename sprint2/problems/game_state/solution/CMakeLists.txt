@@ -36,8 +36,8 @@ add_executable(game_server
 	src/token.cpp
 	src/game_handler.h
 	src/game_handler.cpp
-	src/player.h
-	src/player.cpp
+	src/user.h
+	src/user.cpp
 	src/authenticator.h
 	src/authenticator.cpp
 	src/perf_timer.h
