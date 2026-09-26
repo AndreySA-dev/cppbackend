@@ -1,4 +1,5 @@
 #pragma once
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -9,6 +10,7 @@ namespace model {
 
 using Dimension = double;
 using Coord = Dimension;
+using Speed = Dimension;
 
 
 struct Point {
@@ -28,9 +30,33 @@ struct Offset {
 	Dimension dx, dy;
 };
 
-struct Speed {
-	double h, v;
-};
+// struct Speed {
+// 	Dimension h = 0.0;
+// 	Dimension v = 0.0;
+// };
+
+
+enum class Direction : unsigned char { NORTH = 0, EAST, SOUTH, WEST };
+const char* const DirectionTitles = "URDL";
+char DirectionToChar(model::Direction dir);
+// Direction ChatToDirection(char dir_char);
+
+// class Kinematics {
+//   public:
+// 	Kinematics() = default;
+
+// 	Speed GetSpeed() const noexcept;
+// 	Direction GetDirection() const noexcept;
+// 	void SetSpeed(Dimension v, Dimension h);
+// 	void SetDirection(Dimension v, Dimension h);
+
+//   private:
+// 	Speed speed_;
+// 	Direction direction_;
+// };
+
+// inline const Speed NULL_SPEED = {0.0, 0.0};
+
 
 class Road {
 	struct HorizontalTag {
@@ -109,10 +135,6 @@ class Office {
 };
 
 
-enum class Direction { NORTH = 0, EAST, SOUTH, WEST };
-const char* const DirectionTitles = "URDL";
-char DirectionToChar(model::Direction dir);
-
 class Dog {
   public:
 	using Id = util::Tagged<size_t, Dog>;
@@ -121,13 +143,15 @@ class Dog {
 	Id GetId() const;
 	Point GetPosition() const;
 	Speed GetSpeed() const;
+	void SetSpeed(Speed speed);
 	Direction GetDirection() const;
-	
+	void SetDirection(model::Direction direction);
+
 	void SetPosition(const Point pos);
 
   private:
 	Point position_ = {0, 0};
-	Speed speed_ = {0.0, 0.0};
+	Speed speed_ = 0.0;
 	Direction direction_ = Direction::NORTH;
 	Id id_;
 };
@@ -164,6 +188,11 @@ class Map {
 	void AddOffice(Office office);
 
 	Dog& AddDog(Dog dog);
+	Dog* GetDog(Dog::Id id);
+	const Dog* GetDog(Dog::Id id) const;
+
+	void SetDogDefaultSpeed(std::optional<Speed> speed) noexcept;
+	std::optional<Speed> GetDogDefaultSpeed() const noexcept;
 
   private:
 	using OfficeIdToIndex = std::unordered_map<Office::Id, size_t, util::TaggedHasher<Office::Id>>;
@@ -179,6 +208,7 @@ class Map {
 
 	DogIdToIndex dog_id_to_idx;
 	Dogs dogs_;
+	std::optional<Speed> dog_default_speed_ = std::nullopt;
 };
 
 
@@ -195,12 +225,17 @@ class Game {
 	const Map* FindMap(const Map::Id& id) const noexcept;
 	Map* FindMap(const Map::Id& id) noexcept;
 
+	void SetDogDefaultSpeed(std::optional<Speed> speed) noexcept;
+	std::optional<Speed> GetDogDefaultSpeed() const noexcept;
+
+
   private:
 	using MapIdHasher = util::TaggedHasher<Map::Id>;
 	using MapIdToIndex = std::unordered_map<Map::Id, size_t, MapIdHasher>;
 
 	std::vector<Map> maps_;
 	MapIdToIndex map_id_to_index_;
+	std::optional<Speed> dog_default_speed_ = std::nullopt;
 };
 
 } // namespace model

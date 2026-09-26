@@ -33,6 +33,11 @@ struct ResponseTemplates {
 	inline static json::value ANOTHER_ERROR{{"code", "anotherError"}, {"message", "Another error"}};
 };
 
+enum class Actions {
+	MOVE,
+	NOTHING
+};
+
 class GameHandler {
   public:
 	explicit GameHandler(model::Game& game);
@@ -40,6 +45,7 @@ class GameHandler {
 	std::pair<json::value, game::Code> HandleGameJoinRequest(std::string_view name, std::string_view map_id_sv);
 	std::pair<json::value, game::Code> HandleGetPlayersRequest();
 	std::pair<json::value, game::Code> HandleGetStateRequest(user::User* user_ptr);
+	std::pair<json::value, game::Code> HandleActionRequest(user::User* user_ptr, Actions action, std::string_view prop);
 
 	auth::Authenticator& GetAuthenticator();
 

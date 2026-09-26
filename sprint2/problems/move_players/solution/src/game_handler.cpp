@@ -1,7 +1,7 @@
 #include "game_handler.h"
+#include "helper.h"
 #include "json_loader.h"
 #include "model.h"
-#include "helper.h"
 
 
 #include <iostream>
@@ -73,7 +73,6 @@ pair<json::value, game::Code> GameHandler::HandleGameJoinRequest(std::string_vie
 					dog_pos.y = std::min(road.GetStart().y, road.GetEnd().y) + shift;
 					dog_pos.x = road.GetStart().x;
 				}
-
 			}
 		}
 		new_dog.SetPosition(dog_pos);
@@ -111,6 +110,38 @@ std::pair<json::value, game::Code> GameHandler::HandleGetStateRequest(user::User
 
 	return {jo, game::Code::OK};
 }
+
+std::pair<json::value, game::Code> GameHandler::HandleActionRequest(
+	user::User* user, Actions action, std::string_view prop) {
+
+	if (action == Actions::MOVE) {
+
+		auto dog = user->GetUserDog();
+		if (!dog) {
+			return {json::object{}, game::Code::ANOTHER_ERROR};
+		}
+		// U R D L -> set direction
+		if (prop == "U"sv) {
+			dog->SetDirection(model::Direction::NORTH);
+		} else if (prop == "R") {
+			dog->SetDirection(model::Direction::EAST);
+		} else if (prop == "D") {
+			dog->SetDirection(model::Direction::SOUTH);
+		} else if (prop == "L") {
+			dog->SetDirection(model::Direction::WEST);
+		} else if (prop == "") {
+			// "" -> STOP DOG
+			dog->SetSpeed(0.0);
+		} else {
+			return {{}, game::Code::UNKNOWN_ACTION};
+		}
+		return {json::object{}, game::Code::OK};
+
+	}
+
+	return {json::object{}, game::Code::ANOTHER_ERROR};
+}
+
 
 auth::Authenticator& GameHandler::GetAuthenticator() {
 	return authenticator_;

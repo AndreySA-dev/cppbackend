@@ -1,7 +1,7 @@
 #pragma once
 
 namespace game {
-enum class Code { OK, NOT_FOUND, MAP_NOT_FOUND, BAD_REQUEST, ANOTHER_ERROR };
+enum class Code { OK, NOT_FOUND, MAP_NOT_FOUND, BAD_REQUEST, ANOTHER_ERROR, UNKNOWN_ACTION };
 }
 
 namespace auth {

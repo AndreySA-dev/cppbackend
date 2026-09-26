@@ -34,12 +34,25 @@ User::Id User::GetId() const noexcept {
 }
 
 
-void User::SetMap(const model::Map* map_ptr) {
+void User::SetMap(model::Map* map_ptr) {
 	map_ptr_ = map_ptr;
+}
+
+model::Map* User::GetMap() {
+	return map_ptr_;
 }
 
 const model::Map* User::GetMap() const {
 	return map_ptr_;
+}
+
+model::Dog* User::GetUserDog() {
+	
+	if(map_ptr_) {
+		return map_ptr_->GetDog(model::Dog::Id(*id_));
+	}
+	return nullptr;
+	
 }
 
 

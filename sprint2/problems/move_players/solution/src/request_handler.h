@@ -75,6 +75,7 @@ struct RequestsTexts {
 	constexpr static std::string_view API_GAME_JOIN = "/api/v1/game/join"sv;
 	constexpr static std::string_view API_GAME_PLAYERS = "/api/v1/game/players"sv;
 	constexpr static std::string_view API_GAME_STATE = "/api/v1/game/state"sv;
+	constexpr static std::string_view API_GAME_ACTION = "/api/v1/game/player/action"sv;
 };
 
 
@@ -84,8 +85,11 @@ struct ResponseTemplates {
 
 	constexpr static std::string_view BAD_REQUEST = R"({"code" : "badRequest", "message" : "Bad request"})"sv;
 
-	constexpr static std::string_view INVALID_ARGUMENT_PARSE_BODY_ERROR =
+	constexpr static std::string_view INVALID_ARGUMENT_PARSE_BODY_ERROR_JOIN_GAME =
 		R"({"code" : "invalidArgument", "message" : "Join game request parse error"})"sv;
+
+	constexpr static std::string_view INVALID_ARGUMENT_PARSE_BODY_ERROR_ACTION =
+		R"({"code" : "invalidArgument", "message" : "Action game request parse error"})"sv;
 
 
 	constexpr static std::string_view INVALID_ARGUMENT_INVALID_NAME =
@@ -161,6 +165,7 @@ class RequestHandler : public std::enable_shared_from_this<RequestHandler> {
 	StringResponse HandleHttpGameJoinRequest(HTTPRequest req);
 	StringResponse HandleHttpGetPlayersRequest(HTTPRequest req);
 	StringResponse HandleHttpGetGameStateRequest(HTTPRequest req);
+	StringResponse HandleHttpSetGameActionRequest(HTTPRequest req);
 
 	std::pair<user::User*, auth::Code> Authorize(const HTTPRequest& req);
 

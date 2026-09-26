@@ -28,13 +28,15 @@ class User {
 	const std::string& GetName() const noexcept;
 	Id GetId() const noexcept;
 
-	void SetMap(const model::Map* map_ptr);
+	void SetMap(model::Map* map_ptr);
+	model::Map* GetMap();
 	const model::Map* GetMap() const;
+	model::Dog* GetUserDog();
 
   private:
 	std::string name_;
 	Id id_;
-	const model::Map* map_ptr_ = nullptr;
+	model::Map* map_ptr_ = nullptr;
 
 	static size_t next_id_;
 };

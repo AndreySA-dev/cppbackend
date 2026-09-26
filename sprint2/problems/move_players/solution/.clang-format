@@ -1,0 +1,20 @@
+--- # Use defaults from the LLVM style, but with 4 columns indentation.
+BasedOnStyle: LLVM
+
+--- # Language-specific overrides
+Language: Cpp
+UseTab: Always
+IndentWidth: 4
+TabWidth: 4
+IndentAccessModifiers: false
+# AccessModifierOffset: 0
+ReferenceAlignment: Left
+PointerAlignment: Left
+AlignAfterOpenBracket: false
+ColumnLimit: 120
+AllowShortRecordOnASingleLine: Empty
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortBlocksOnASingleLine: Always
+AllowShortIfStatementsOnASingleLine: Never
+BreakTemplateDeclarations: Yes
+MaxEmptyLinesToKeep: 2

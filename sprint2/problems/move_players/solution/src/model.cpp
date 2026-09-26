@@ -75,6 +75,30 @@ Dog& Map::AddDog(Dog dog) {
 	return new_dog;
 }
 
+Dog* Map::GetDog(Dog::Id id) {
+
+	if (auto it = dog_id_to_idx.find(id); it != dog_id_to_idx.cend()) {
+		return &dogs_[it->second];
+	}
+	return nullptr;
+}
+
+const Dog* Map::GetDog(Dog::Id id) const {
+
+	if (auto it = dog_id_to_idx.find(id); it != dog_id_to_idx.cend()) {
+		return &dogs_[it->second];
+	}
+	return nullptr;
+}
+
+void Map::SetDogDefaultSpeed(std::optional<Speed> speed) noexcept {
+	dog_default_speed_ = speed;
+}
+
+std::optional<Speed> Map::GetDogDefaultSpeed() const noexcept {
+	return dog_default_speed_;
+}
+
 
 void Game::AddMap(Map map) {
 
@@ -108,23 +132,46 @@ Map* Game::FindMap(const Map::Id& id) noexcept {
 }
 
 
+void Game::SetDogDefaultSpeed(std::optional<Speed> speed) noexcept {
+	dog_default_speed_ = speed;
+}
+
+
+std::optional<Speed> Game::GetDogDefaultSpeed() const noexcept {
+	return dog_default_speed_;
+}
+
+
 Dog::Dog(Id id) : id_(id) {}
+
 
 Dog::Id Dog::GetId() const {
 	return id_;
 }
 
+
 Point Dog::GetPosition() const {
 	return position_;
 }
+
 
 Speed Dog::GetSpeed() const {
 	return speed_;
 }
 
+void Dog::SetSpeed(Speed speed) {
+	speed_ = speed;
+}
+
+
 Direction Dog::GetDirection() const {
 	return direction_;
 }
+
+void Dog::SetDirection(model::Direction direction) {
+	direction_ = direction;
+}
+
 
 void Dog::SetPosition(const Point pos) {
 	position_ = pos;
@@ -134,6 +181,11 @@ void Dog::SetPosition(const Point pos) {
 char DirectionToChar(model::Direction dir) {
 	return model::DirectionTitles[static_cast<char>(dir)];
 }
+
+// Direction ChatToDirection(char dir_char) {
+// 	Direction dir = Direction::NORTH;
+// 	if (dir_char)
+// }
 
 Dimension Road::GetLength() const noexcept {
 	return IsHorizontal() ? std::abs(end_.x - start_.x) : std::abs(end_.y - start_.y);

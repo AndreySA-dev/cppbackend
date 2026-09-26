@@ -3,8 +3,9 @@
 #include "model.h"
 
 #include <fstream>
-#include <string_view>
+#include <stdexcept>
 #include <string>
+#include <string_view>
 
 #include <boost/json.hpp>
 
@@ -86,6 +87,12 @@ model::Map JSONToMap(const json::object& jo) {
 		map.AddOffice(JSONToOffice(office.as_object()));
 	}
 
+	const json::value* dog_speed = jo.if_contains("dogSpeed");
+	if (dog_speed) {
+		model::Dimension speed = dog_speed->to_number<model::Dimension>();
+		map.SetDogDefaultSpeed(speed);
+	}
+
 	return map;
 }
 
@@ -142,10 +149,22 @@ void DogToJSON(const model::Dog& dog, json::object& jo) {
 
 	jo["id"] = *dog.GetId();
 	json::value().emplace_double() = 12.213;
-	jo["pos"] = json::array({ json::value(dog.GetPosition().x), json::value(dog.GetPosition().y)});
-	jo["speed"] = json::array({dog.GetSpeed().h, dog.GetSpeed().v});
-	jo["dir"] = std::string(1, DirectionToChar(dog.GetDirection()));
+	jo["pos"] = json::array({json::value(dog.GetPosition().x), json::value(dog.GetPosition().y)});
 
+	model::Dimension v_speed = 0;
+	model::Dimension h_speed = 0;
+	if (dog.GetDirection() == model::Direction::NORTH) {
+		v_speed = dog.GetSpeed() * -1;
+	} else if (dog.GetDirection() == model::Direction::EAST) {
+		h_speed = dog.GetSpeed();
+	} else if (dog.GetDirection() == model::Direction::SOUTH) {
+		v_speed = dog.GetSpeed();
+	} else if (dog.GetDirection() == model::Direction::WEST) {
+		h_speed = dog.GetSpeed() * -1;
+	}
+	jo["speed"] = json::array({h_speed, v_speed});
+
+	jo["dir"] = std::string(1, DirectionToChar(dog.GetDirection()));
 }
 
 
@@ -158,7 +177,6 @@ void MapToDogsJSON(const model::Map& map, json::object& jo) {
 		dogs_jo.emplace(std::to_string(*dog.GetId()), std::move(dog_jo));
 	}
 	jo["players"] = std::move(dogs_jo);
-
 }
 
 
@@ -202,10 +220,21 @@ model::Game LoadGame(const std::filesystem::path& json_path) {
 	// Загрузить модель игры из файла
 	model::Game game;
 
-	auto json_data = ParseFile(json_path);
+	const auto cfg_jv = ParseFile(json_path);
+	auto& cfg_jo = cfg_jv.as_object();
 
-	for (const auto& json_map : json_data.as_object().at("maps").as_array()) {
-		game.AddMap(JSONToMap(json_map.as_object()));
+	const json::value* def_dog_speed = cfg_jo.if_contains("defaultDogSpeed");
+	if (def_dog_speed) {
+		model::Dimension speed = def_dog_speed->to_number<model::Dimension>();
+		game.SetDogDefaultSpeed(speed);
+	}
+
+	for (const auto& json_map : cfg_jo.at("maps").as_array()) {
+		auto new_map = JSONToMap(json_map.as_object());
+		if (!new_map.GetDogDefaultSpeed() && game.GetDogDefaultSpeed()) {
+			new_map.SetDogDefaultSpeed(game.GetDogDefaultSpeed());
+		}
+		game.AddMap(new_map);
 	}
 
 	return game;

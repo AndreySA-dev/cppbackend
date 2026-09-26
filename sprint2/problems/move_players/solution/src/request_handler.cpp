@@ -54,6 +54,14 @@ StringResponse RequestHandler::HandleAPIRequest(HTTPRequest req) {
 		// API requst get all players =============================
 
 		resp = HandleHttpGetGameStateRequest(req);
+
+	} else if (target.starts_with(RequestsTexts::API_GAME_ACTION)) {
+		// API requst change player state =============================
+		
+		resp = HandleHttpSetGameActionRequest(req);
+
+	} else {
+		resp = GetStringResponse(ResponseTemplates::BAD_REQUEST, http::status::bad_request, ContentType::APP_JSON);
 	}
 
 	return resp;
@@ -84,8 +92,8 @@ StringResponse RequestHandler::HandleHttpGameJoinRequest(HTTPRequest req) {
 
 	} catch (...) {
 		// std::cerr << e.what() << std::endl;
-		join_resp = GetStringResponse(
-			ResponseTemplates::INVALID_ARGUMENT_PARSE_BODY_ERROR, http::status::bad_request, ContentType::APP_JSON);
+		join_resp = GetStringResponse(ResponseTemplates::INVALID_ARGUMENT_PARSE_BODY_ERROR_JOIN_GAME,
+			http::status::bad_request, ContentType::APP_JSON);
 		join_resp.set(http::field::cache_control, "no-cache"sv);
 		return join_resp;
 	}
@@ -161,11 +169,47 @@ StringResponse RequestHandler::HandleHttpGetGameStateRequest(HTTPRequest req) {
 	return resp;
 }
 
+StringResponse RequestHandler::HandleHttpSetGameActionRequest(HTTPRequest req) {
+	StringResponse resp;
+
+	auto [user_ptr, auth_code] = Authorize(req);
+	if (auth_code != auth::Code::OK) {
+		return GetAuthorizeErrorResponse(auth_code);
+	}
+
+	// parse json body
+	string_view move;
+	boost::system::error_code ec;
+	json::value jv = json::parse(req.body(), ec);
+	if (!ec) {
+		if (auto jo = jv.if_object()) {
+			if (auto move_jv = jo->if_contains("move")) {
+				move = move_jv->as_string();
+			}
+		}
+	}
+
+	// check move is correct value
+	if (move.find_first_not_of(model::DirectionTitles) != string::npos) {
+		resp = GetStringResponse(ResponseTemplates::INVALID_ARGUMENT_PARSE_BODY_ERROR_ACTION, http::status::bad_request,
+			ContentType::APP_JSON);
+		resp.set(http::field::cache_control, "no-cache"sv);
+		return resp;
+	}
+
+
+	auto handle_result = game_handler_.HandleActionRequest(user_ptr, game_handler::Actions::MOVE, move);
+
+	resp = GetStringResponse(json::serialize(handle_result.first), http::status::ok, ContentType::APP_JSON);
+	resp.set(http::field::cache_control, "no-cache"sv);
+	return resp;
+}
+
 
 std::pair<user::User*, auth::Code> RequestHandler::Authorize(const HTTPRequest& req) {
 
 	auto auth_str = req["Authorization"];
-	
+
 	// Check that first part of string is "Bearer: "
 	if (auth_str.substr(0, ResponseTemplates::BEARER_FIELD_PREFIX.size()) != ResponseTemplates::BEARER_FIELD_PREFIX) {
 		return {nullptr, auth::Code::INVALID_TOKEN_HEADER_MISSING};
@@ -192,7 +236,6 @@ StringResponse RequestHandler::GetAuthorizeErrorResponse(auth::Code auth_code) {
 	}
 	resp.set(http::field::cache_control, "no-cache"sv);
 	return resp;
-
 }
 
 
@@ -220,8 +263,8 @@ CommonResponse RequestHandler::GetFileResponse(HTTPRequest req) {
 
 	if (target.size() == 0 || target[0] != '/') {
 		// request is empty or not start with '/'
-		return {GetStringResponse("Error: incorrect resource in request.", http::status::bad_request,
-			ContentType::TEXT_PLAIN)};
+		return {GetStringResponse(
+			"Error: incorrect resource in request.", http::status::bad_request, ContentType::TEXT_PLAIN)};
 	}
 
 	fs::path req_path;
