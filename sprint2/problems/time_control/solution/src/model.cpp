@@ -1,5 +1,7 @@
 #include "model.h"
+#include "helper.h"
 
+#include <iostream>
 #include <stdexcept>
 
 namespace model {
@@ -27,9 +29,14 @@ const Map::Dogs& Map::GetDogs() const noexcept {
 	return dogs_;
 }
 
+Map::Dogs& Map::GetDogs() noexcept {
+	return dogs_;
+}
+
 
 void Map::AddRoad(const Road& road) {
 	roads_.emplace_back(road);
+	dog_to_road_idx_.clear();
 }
 
 
@@ -57,7 +64,7 @@ void Map::AddOffice(Office office) {
 
 Dog& Map::AddDog(Dog dog) {
 
-	if (dog_id_to_idx.contains(dog.GetId())) {
+	if (dog_id_to_idx_.contains(dog.GetId())) {
 		throw std::invalid_argument("Duplicate dog");
 	}
 
@@ -66,18 +73,24 @@ Dog& Map::AddDog(Dog dog) {
 	Dog& new_dog = dogs_.emplace_back(std::move(dog));
 
 	try {
-		dog_id_to_idx.emplace(new_dog.GetId(), idx);
+		dog_id_to_idx_.emplace(new_dog.GetId(), idx);
+		dog_to_road_idx_.clear();
 	} catch (...) {
 		// Удаляем офис из вектора, если не удалось вставить в unordered_map
 		dogs_.pop_back();
 		throw;
 	}
+
+	if (GetDogDefaultSpeed()) {
+		new_dog.SetSpeed(*GetDogDefaultSpeed());
+	}
+
 	return new_dog;
 }
 
 Dog* Map::GetDog(Dog::Id id) {
 
-	if (auto it = dog_id_to_idx.find(id); it != dog_id_to_idx.cend()) {
+	if (auto it = dog_id_to_idx_.find(id); it != dog_id_to_idx_.cend()) {
 		return &dogs_[it->second];
 	}
 	return nullptr;
@@ -85,7 +98,7 @@ Dog* Map::GetDog(Dog::Id id) {
 
 const Dog* Map::GetDog(Dog::Id id) const {
 
-	if (auto it = dog_id_to_idx.find(id); it != dog_id_to_idx.cend()) {
+	if (auto it = dog_id_to_idx_.find(id); it != dog_id_to_idx_.cend()) {
 		return &dogs_[it->second];
 	}
 	return nullptr;
@@ -98,6 +111,100 @@ void Map::SetDogDefaultSpeed(std::optional<Speed> speed) noexcept {
 std::optional<Speed> Map::GetDogDefaultSpeed() const noexcept {
 	return dog_default_speed_;
 }
+
+void Map::Act(std::chrono::steady_clock::duration duration) {
+
+	for (auto& dog : GetDogs()) {
+		auto s = std::chrono::duration<double>(duration).count();
+		std::cerr << "Move dog " << *dog.GetId() << ". Speed-" << dog.GetSpeed() << ". Seconds - " << s
+				  << std::endl; // ============= DBG LOG !!!
+		model::Dimension distance = dog.GetSpeed() * s;
+		std::cerr << "Move dog " << *dog.GetId() << " distance - " << distance
+				  << std::endl; // ============= DBG LOG !!!
+		MoveDog(dog, distance);
+	}
+}
+
+std::pair<const Road*, Point> Map::MoveDog(Dog& dog, Dimension distance) {
+
+	using namespace helper;
+	std::cerr << "Start pos " << dog.GetPosition().x << " " << dog.GetPosition().x << std::endl; // =========== DBG LOG !!!
+	// finder road by position
+	auto& roads = GetRoads();
+	auto road_finder = [&roads](Point pos) -> const Road* {
+		for (auto& road : roads) {
+			if (road.GetRoadRect().IsPointInBound(pos)) {
+				return &road;
+			}
+		}
+		return nullptr;
+	};
+
+	const Road* curr_road = nullptr;
+	// find current road in cache
+	if (auto road_it = dog_to_road_idx_.find(&dog); road_it != dog_to_road_idx_.cend()) {
+		curr_road = road_it->second;
+	} else {
+		// find dog current road
+
+		curr_road = road_finder(dog.GetPosition());
+		if (!curr_road) {
+			return {nullptr, {0, 0}};
+		}
+		// cache current road
+		dog_to_road_idx_[&dog] = curr_road;
+	}
+
+	// calculate new position
+	Point new_pos = dog.GetPosition();
+	if (dog.GetDirection() == Direction::NORTH) {
+		new_pos.y -= distance;
+	} else if (dog.GetDirection() == Direction::EAST) {
+		new_pos.x += distance;
+	} else if (dog.GetDirection() == Direction::SOUTH) {
+		new_pos.y += distance;
+	} else if (dog.GetDirection() == Direction::WEST) {
+		new_pos.x -= distance;
+	}
+
+	Rectangle curr_road_rect = curr_road->GetRoadRect();
+	if (curr_road_rect.IsPointInBound(new_pos)) {
+		// new position in current road
+
+		dog.SetPosition(new_pos);
+		std::cerr << "New pos " << new_pos.x << " " << new_pos.y << std::endl; // =========== DBG LOG !!!
+		return {curr_road, new_pos};
+	}
+
+	// find road of new position and check that old position in same road
+	auto new_road = road_finder(new_pos);
+	if (new_road && new_road->GetRoadRect().IsPointInBound(dog.GetPosition())) {
+		// current dog position in new_road, is correct case
+		// move dog, renew cache, return
+		dog.SetPosition(new_pos);
+		dog_to_road_idx_[&dog] = new_road;
+		std::cerr << "NewROAD !! New pos " << new_pos.x << " " << new_pos.y << std::endl; // =========== DBG LOG !!!
+		return {new_road, new_pos};
+	}
+
+	// dog bumped into the road edge
+	if (dog.GetDirection() == Direction::NORTH) {
+		new_pos.y = curr_road_rect.position.y;
+	} else if (dog.GetDirection() == Direction::EAST) {
+		new_pos.x = curr_road_rect.position.x + curr_road_rect.size.width;
+	} else if (dog.GetDirection() == Direction::SOUTH) {
+		new_pos.y = curr_road_rect.position.y + curr_road_rect.size.height;
+	} else if (dog.GetDirection() == Direction::WEST) {
+		new_pos.x = curr_road_rect.position.x;
+	}
+	std::cerr << "Road bump !. pos " << new_pos.x << " " << new_pos.y << std::endl; // =========== DBG LOG !!!
+	dog.SetPosition(new_pos);
+	return {curr_road, new_pos};
+}
+
+// Road* Map::PointInRoad(Point point) {
+// 	return nullptr;
+// }
 
 
 void Game::AddMap(Map map) {
@@ -113,6 +220,14 @@ void Game::AddMap(Map map) {
 			throw;
 		}
 	}
+}
+
+const Game::Maps& Game::GetMaps() const noexcept {
+	return maps_;
+}
+
+Game::Maps& Game::GetMaps() noexcept {
+	return maps_;
 }
 
 const Map* Game::FindMap(const Map::Id& id) const noexcept {
@@ -189,6 +304,27 @@ char DirectionToChar(model::Direction dir) {
 
 Dimension Road::GetLength() const noexcept {
 	return IsHorizontal() ? std::abs(end_.x - start_.x) : std::abs(end_.y - start_.y);
+}
+
+Rectangle Road::GetRoadRect() const {
+
+	const auto [left, right] = std::minmax(start_.x, end_.x);
+	const auto [top, bottom] = std::minmax(start_.y, end_.y);
+	return {{left - SIZE, top - SIZE}, {right - left + SIZE * 2, bottom - top + SIZE * 2}};
+}
+
+bool Road::IsHorizontal() const noexcept {
+	return start_.y == end_.y;
+}
+
+bool Road::IsVertical() const noexcept {
+	return start_.x == end_.x;
+}
+
+bool Rectangle::IsPointInBound(Point p) {
+	using namespace helper;
+	return LessOrEqual(position.x, p.x) && LessOrEqual(p.x, position.x + size.width) && LessOrEqual(position.y, p.y) &&
+		   LessOrEqual(p.y, position.y + size.height);
 }
 
 } // namespace model

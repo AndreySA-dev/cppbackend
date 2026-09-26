@@ -4,6 +4,7 @@
 #include <string>
 #include <mutex>
 
+
 namespace helper {
 
 std::string URLDecode(const std::string_view encoded);
@@ -21,5 +22,9 @@ T GetRandomNum(T min, T max) {
 
     return dist(gen);
 }
+
+
+bool LessOrEqual(double a, double b, double eps = 1e-9);
+bool GreatOrEqual(double a, double b, double eps = 1e-9);
 
 } // namespace helper

@@ -1,10 +1,12 @@
 #pragma once
+#include "tagged.h"
+
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
-
-#include "tagged.h"
+#include <chrono>
 
 namespace model {
 
@@ -24,6 +26,7 @@ struct Size {
 struct Rectangle {
 	Point position;
 	Size size;
+	bool IsPointInBound(Point p);
 };
 
 struct Offset {
@@ -77,13 +80,11 @@ class Road {
 
 	Dimension GetLength() const noexcept;
 
-	bool IsHorizontal() const noexcept {
-		return start_.y == end_.y;
-	}
+	Rectangle GetRoadRect() const;
 
-	bool IsVertical() const noexcept {
-		return start_.x == end_.x;
-	}
+	bool IsHorizontal() const noexcept;
+
+	bool IsVertical() const noexcept;
 
 	Point GetStart() const noexcept {
 		return start_;
@@ -94,6 +95,7 @@ class Road {
 	}
 
   private:
+	const Dimension SIZE = 0.4;
 	Point start_;
 	Point end_;
 };
@@ -179,7 +181,6 @@ class Map {
 
 	const Offices& GetOffices() const noexcept;
 
-	const Dogs& GetDogs() const noexcept;
 
 	void AddRoad(const Road& road);
 
@@ -188,16 +189,21 @@ class Map {
 	void AddOffice(Office office);
 
 	Dog& AddDog(Dog dog);
+	const Dogs& GetDogs() const noexcept;
+	Dogs& GetDogs() noexcept;
 	Dog* GetDog(Dog::Id id);
 	const Dog* GetDog(Dog::Id id) const;
-
 	void SetDogDefaultSpeed(std::optional<Speed> speed) noexcept;
 	std::optional<Speed> GetDogDefaultSpeed() const noexcept;
-
-  private:
+	
+	void Act(std::chrono::steady_clock::duration duration);
+	
+	private:
 	using OfficeIdToIndex = std::unordered_map<Office::Id, size_t, util::TaggedHasher<Office::Id>>;
 	using DogIdToIndex = std::unordered_map<Dog::Id, size_t, util::TaggedHasher<Dog::Id>>;
-
+	using DogToRoadIdx = std::unordered_map<Dog*, const Road*>;
+	
+	std::pair<const Road*, Point> MoveDog(Dog& dog, Dimension distance);
 	Id id_;
 	std::string name_;
 	Roads roads_;
@@ -206,7 +212,8 @@ class Map {
 	OfficeIdToIndex warehouse_id_to_index_;
 	Offices offices_;
 
-	DogIdToIndex dog_id_to_idx;
+	DogIdToIndex dog_id_to_idx_;
+	DogToRoadIdx dog_to_road_idx_;
 	Dogs dogs_;
 	std::optional<Speed> dog_default_speed_ = std::nullopt;
 };
@@ -218,9 +225,8 @@ class Game {
 
 	void AddMap(Map map);
 
-	const Maps& GetMaps() const noexcept {
-		return maps_;
-	}
+	const Maps& GetMaps() const noexcept;
+	Maps& GetMaps() noexcept;
 
 	const Map* FindMap(const Map::Id& id) const noexcept;
 	Map* FindMap(const Map::Id& id) noexcept;

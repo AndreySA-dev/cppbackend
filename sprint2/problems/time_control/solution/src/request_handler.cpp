@@ -15,8 +15,8 @@ namespace net = boost::asio;
 
 
 RequestHandler::RequestHandler(
-	model::Game& game, game_handler::GameHandler& game_handler, const std::string& root_path, net::io_context& ctx)
-	: game_{game}, game_handler_(game_handler), wwwroot_path_{root_path}, api_strand_{net::make_strand(ctx)} {}
+	model::Game& game, GameHandlerPtr game_hndl, const std::string& root_path /*, net::io_context& ctx */)
+	: game_{game}, game_hndl_(game_hndl), wwwroot_path_{root_path} /*, api_strand_{net::make_strand(ctx)} */ {}
 
 
 StringResponse RequestHandler::HandleAPIRequest(HTTPRequest req) {
@@ -28,7 +28,7 @@ StringResponse RequestHandler::HandleAPIRequest(HTTPRequest req) {
 	if (target.starts_with(RequestsTexts::API_MAPS)) {
 		// API request for MAP ==========================================
 
-		auto [resp_j, code] = game_handler_.HandleAPIMapRequest(target);
+		auto [resp_j, code] = game_hndl_->HandleAPIMapRequest(target);
 		http::status status;
 		if (code == game::Code::OK) {
 			status = http::status::ok;
@@ -57,8 +57,12 @@ StringResponse RequestHandler::HandleAPIRequest(HTTPRequest req) {
 
 	} else if (target.starts_with(RequestsTexts::API_GAME_ACTION)) {
 		// API requst change player state =============================
-		
+
 		resp = HandleHttpSetGameActionRequest(req);
+
+	} else if (target.starts_with(RequestsTexts::API_GAME_TICK)) {
+		// API shift time =============================
+		resp = HandleHttpTickRequest(req);
 
 	} else {
 		resp = GetStringResponse(ResponseTemplates::BAD_REQUEST, http::status::bad_request, ContentType::APP_JSON);
@@ -105,7 +109,7 @@ StringResponse RequestHandler::HandleHttpGameJoinRequest(HTTPRequest req) {
 		return join_resp;
 	}
 
-	auto [result_j, code] = game_handler_.HandleGameJoinRequest(name, map_id);
+	auto [result_j, code] = game_hndl_->HandleGameJoinRequest(name, map_id);
 	if (code == game::Code::OK) {
 		join_resp = GetStringResponse(json::serialize(result_j), http::status::ok, ContentType::APP_JSON);
 	} else if (code == game::Code::MAP_NOT_FOUND) {
@@ -139,7 +143,7 @@ StringResponse RequestHandler::HandleHttpGetPlayersRequest(HTTPRequest req) {
 	}
 
 	// get full list of players
-	auto [players_j, get_code] = game_handler_.HandleGetPlayersRequest();
+	auto [players_j, get_code] = game_hndl_->HandleGetPlayersRequest();
 	resp = GetStringResponse(json::serialize(players_j), http::status::ok, ContentType::APP_JSON);
 	resp.set(http::field::cache_control, "no-cache"sv);
 	return resp;
@@ -162,7 +166,7 @@ StringResponse RequestHandler::HandleHttpGetGameStateRequest(HTTPRequest req) {
 		return GetAuthorizeErrorResponse(auth_code);
 	}
 
-	auto handle_result = game_handler_.HandleGetStateRequest(user_ptr);
+	auto handle_result = game_hndl_->HandleGetStateRequest(user_ptr);
 
 	resp = GetStringResponse(json::serialize(handle_result.first), http::status::ok, ContentType::APP_JSON);
 	resp.set(http::field::cache_control, "no-cache"sv);
@@ -172,6 +176,16 @@ StringResponse RequestHandler::HandleHttpGetGameStateRequest(HTTPRequest req) {
 StringResponse RequestHandler::HandleHttpSetGameActionRequest(HTTPRequest req) {
 	StringResponse resp;
 
+	// check method GET or HEAD
+	if (!(req.method() == http::verb::post)) {
+		resp = GetStringResponse(
+			ResponseTemplates::INVALID_METHOD, http::status::method_not_allowed, ContentType::APP_JSON);
+		resp.set(http::field::cache_control, "no-cache"sv);
+		resp.set(http::field::allow, "POST");
+		return resp;
+	}
+
+	// std::cerr << "Token - " << req["Authorization"] << std::endl; // ========================== DEBUG LOG !
 	auto [user_ptr, auth_code] = Authorize(req);
 	if (auth_code != auth::Code::OK) {
 		return GetAuthorizeErrorResponse(auth_code);
@@ -198,9 +212,47 @@ StringResponse RequestHandler::HandleHttpSetGameActionRequest(HTTPRequest req) {
 	}
 
 
-	auto handle_result = game_handler_.HandleActionRequest(user_ptr, game_handler::Actions::MOVE, move);
+	auto handle_result = game_hndl_->HandleActionRequest(user_ptr, game_handler::Actions::MOVE, move);
 
 	resp = GetStringResponse(json::serialize(handle_result.first), http::status::ok, ContentType::APP_JSON);
+	resp.set(http::field::cache_control, "no-cache"sv);
+	return resp;
+}
+
+StringResponse RequestHandler::HandleHttpTickRequest(HTTPRequest req) {
+
+	StringResponse resp;
+	// check method GET or HEAD
+	if (!(req.method() == http::verb::post)) {
+		resp = GetStringResponse(
+			ResponseTemplates::INVALID_METHOD, http::status::method_not_allowed, ContentType::APP_JSON);
+		resp.set(http::field::cache_control, "no-cache"sv);
+		resp.set(http::field::allow, "POST");
+		return resp;
+	}
+
+	// parse json body
+	int64_t* time_delta_ms = nullptr;
+	boost::system::error_code ec;
+	json::value jv = json::parse(req.body(), ec);
+	if (!ec) {
+		if (auto jo = jv.if_object()) {
+			if (auto time_jv = jo->if_contains("timeDelta")) {
+				time_delta_ms = time_jv->if_int64();
+			}
+		}
+	}
+
+	if (time_delta_ms) {
+		game_hndl_->HandleTickRequest(*time_delta_ms);
+	} else {
+		resp = GetStringResponse(
+			ResponseTemplates::INVALID_ARGUMENT_PARSE_BODY_TICK, http::status::bad_request, ContentType::APP_JSON);
+		resp.set(http::field::cache_control, "no-cache"sv);
+		return resp;
+	}
+
+	resp = GetStringResponse("{}"sv, http::status::ok, ContentType::APP_JSON);
 	resp.set(http::field::cache_control, "no-cache"sv);
 	return resp;
 }
@@ -218,7 +270,7 @@ std::pair<user::User*, auth::Code> RequestHandler::Authorize(const HTTPRequest& 
 	// get second part auth string after "Bearer "
 	string_view token_str = auth_str.substr(ResponseTemplates::BEARER_FIELD_PREFIX.size());
 	// Get player with whit requested token
-	auto [player_ptr, code] = game_handler_.GetAuthenticator().GetUser(token::Token(std::string(token_str)));
+	auto [player_ptr, code] = game_hndl_->GetAuthenticator().GetUser(token::Token(std::string(token_str)));
 
 	return {player_ptr, code};
 }

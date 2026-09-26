@@ -12,7 +12,8 @@ using namespace std;
 using namespace literals;
 
 
-GameHandler::GameHandler(model::Game& game) : game_{game}, authenticator_{game} {}
+GameHandler::GameHandler(model::Game& game, net::io_context& ioc)
+	: game_{game}, authenticator_{game}, game_strand_{net::make_strand(ioc)}, tick_timer_{ioc} {}
 
 
 pair<json::value, game::Code> GameHandler::HandleAPIMapRequest(std::string_view target) {
@@ -117,6 +118,7 @@ std::pair<json::value, game::Code> GameHandler::HandleActionRequest(
 	if (action == Actions::MOVE) {
 
 		auto dog = user->GetUserDog();
+		// std::cerr << "Mode dog - " << *dog->GetId() << std::endl; // ========================== DEBUG LOG !
 		if (!dog) {
 			return {json::object{}, game::Code::ANOTHER_ERROR};
 		}
@@ -131,20 +133,64 @@ std::pair<json::value, game::Code> GameHandler::HandleActionRequest(
 			dog->SetDirection(model::Direction::WEST);
 		} else if (prop == "") {
 			// "" -> STOP DOG
-			dog->SetSpeed(0.0);
+			// dog->SetSpeed(0.0);
 		} else {
 			return {{}, game::Code::UNKNOWN_ACTION};
 		}
 		return {json::object{}, game::Code::OK};
-
 	}
 
 	return {json::object{}, game::Code::ANOTHER_ERROR};
 }
 
+std::pair<json::value, game::Code> GameHandler::HandleTickRequest(size_t milliseconds) {
+	if (milliseconds > 0) {
+		UpdateState(std::chrono::milliseconds(milliseconds));
+	}
+	return {{}, game::Code::OK};
+}
+
 
 auth::Authenticator& GameHandler::GetAuthenticator() {
 	return authenticator_;
+}
+
+net::strand<net::io_context::executor_type>& GameHandler::GetStrand() {
+	return game_strand_;
+}
+
+void GameHandler::StartTick() {
+	tick_is_enabled_.store(true);
+	ScheduleTick();
+}
+
+void GameHandler::StopTick() {
+	tick_is_enabled_.store(false);
+}
+
+void GameHandler::ScheduleTick() {
+	tick_timer_.expires_after(upd_period_);
+	tick_timer_.async_wait([self = this->shared_from_this()](boost::system::error_code ec) {
+		if (!ec && self->tick_is_enabled_.load()) {
+			auto now = std::chrono::steady_clock::now();
+			auto dur = now - self->prev_upd_time_;
+			self->prev_upd_time_ = now;
+			self->UpdateState(dur);
+			self->ScheduleTick();
+		}
+	});
+}
+
+void GameHandler::UpdateState(std::chrono::steady_clock::duration duration) {
+	// std::cerr << "Update. duration - " << duration.count() <<  endl; // ============= DBG LOG !!!
+
+	// handle all maps
+	for (auto& map : game_.GetMaps()) 
+	{
+		// std::cerr << "Act map " << *map.GetId() <<  std::endl; // ============= DBG LOG !!!
+		map.Act(duration);
+	}
+
 }
 
 

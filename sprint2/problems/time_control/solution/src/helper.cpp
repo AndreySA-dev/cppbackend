@@ -1,5 +1,8 @@
 #include "helper.h"
+
 #include <stdexcept>
+#include <cmath>
+#include <algorithm>
 
 // Helper function to convert a hexadecimal character to an integer
 namespace helper {
@@ -48,6 +51,15 @@ std::string URLDecode(const std::string_view encoded) {
 	return decoded;
 }
 
+bool LessOrEqual(double a, double b, double eps) {
+	return (a < b) || (std::fabs(a - b) <= eps);
+}
+
+bool GreatOrEqual(double a, double b, double eps) {
+	return LessOrEqual(b, a, eps);
+}
+
+
 // int random_int(int min, int max) {
 // 	static std::mutex mut;
 //     static std::random_device rd;
@@ -57,7 +69,6 @@ std::string URLDecode(const std::string_view encoded) {
 
 //     return dist(gen);
 // }
-
 
 
 } // namespace helper

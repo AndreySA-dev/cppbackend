@@ -59,9 +59,9 @@ model::Dog* User::GetUserDog() {
 User* Users::AddUser(std::string_view name) {
 
 
-	if (player_name_to_index_.find(name) != player_name_to_index_.cend()) {
-		throw std::invalid_argument("User with name "s + string(name) + " already exists"s);
-	}
+	// if (player_name_to_index_.find(name) != player_name_to_index_.cend()) {
+	// 	throw std::invalid_argument("User with name "s + string(name) + " already exists"s);
+	// }
 
 	const size_t idx = players_.size();
 	decltype(player_id_to_index_.emplace()) add_id_idx_result;

@@ -15,6 +15,9 @@
 #include <variant>
 #include <utility>
 
+#include <boost/asio.hpp>
+
+
 namespace http_handler {
 
 namespace beast = boost::beast;
@@ -76,6 +79,7 @@ struct RequestsTexts {
 	constexpr static std::string_view API_GAME_PLAYERS = "/api/v1/game/players"sv;
 	constexpr static std::string_view API_GAME_STATE = "/api/v1/game/state"sv;
 	constexpr static std::string_view API_GAME_ACTION = "/api/v1/game/player/action"sv;
+	constexpr static std::string_view API_GAME_TICK = "/api/v1/game/tick"sv;
 };
 
 
@@ -91,6 +95,8 @@ struct ResponseTemplates {
 	constexpr static std::string_view INVALID_ARGUMENT_PARSE_BODY_ERROR_ACTION =
 		R"({"code" : "invalidArgument", "message" : "Action game request parse error"})"sv;
 
+	constexpr static std::string_view INVALID_ARGUMENT_PARSE_BODY_TICK =
+		R"({"code" : "invalidArgument", "message" : "Tick request parse error"})"sv;
 
 	constexpr static std::string_view INVALID_ARGUMENT_INVALID_NAME =
 		R"({"code" : "invalidArgument", "message" : "Invalid name"})"sv;
@@ -119,8 +125,11 @@ struct ResponseTemplates {
 
 class RequestHandler : public std::enable_shared_from_this<RequestHandler> {
   public:
+
+	using GameHandlerPtr = std::shared_ptr<game_handler::GameHandler>;
+
 	explicit RequestHandler(
-		model::Game& game, game_handler::GameHandler& game_handler, const std::string& root_path, net::io_context& ctx);
+		model::Game& game, GameHandlerPtr game_hndl, const std::string& root_path /*, net::io_context& ctx*/);
 
 	using HTTPRequest = http::request<http::string_body>;
 
@@ -144,7 +153,7 @@ class RequestHandler : public std::enable_shared_from_this<RequestHandler> {
 				send(std::move(resp));
 			};
 
-			return net::dispatch(api_strand_, api_handler);
+			return net::dispatch(game_hndl_->GetStrand(), api_handler);
 
 			// send(HandleAPIRequest(req));
 
@@ -166,6 +175,7 @@ class RequestHandler : public std::enable_shared_from_this<RequestHandler> {
 	StringResponse HandleHttpGetPlayersRequest(HTTPRequest req);
 	StringResponse HandleHttpGetGameStateRequest(HTTPRequest req);
 	StringResponse HandleHttpSetGameActionRequest(HTTPRequest req);
+	StringResponse HandleHttpTickRequest(HTTPRequest req);
 
 	std::pair<user::User*, auth::Code> Authorize(const HTTPRequest& req);
 
@@ -179,9 +189,9 @@ class RequestHandler : public std::enable_shared_from_this<RequestHandler> {
 
 	// bool keep_alive;
 	model::Game& game_;
-	game_handler::GameHandler& game_handler_;
+	GameHandlerPtr game_hndl_;
 	std::filesystem::path wwwroot_path_;
-	net::strand<net::io_context::executor_type> api_strand_;
+	// net::strand<net::io_context::executor_type> api_strand_;
 };
 
 
@@ -195,9 +205,9 @@ class LoggingRequestHandler {
 	void operator()(http::request<Body, http::basic_fields<Allocator>>&& req, const tcp::socket& socket, Send&& send) {
 
 
-		std::string addr = socket.remote_endpoint().address().to_string();
-		srv_log::LogMessage({{"ip", addr}, {"URI", req.target()}, {"method", req.method_string()}, {"address", addr}},
-			"request received"sv);
+		// std::string addr = socket.remote_endpoint().address().to_string();
+		// srv_log::LogMessage({{"ip", addr}, {"URI", req.target()}, {"method", req.method_string()}, {"address", addr}},
+		// 	"request received"sv);
 
 		perf_timer<std::chrono::microseconds> timer;
 
@@ -210,9 +220,9 @@ class LoggingRequestHandler {
 				contnent_type_str = std::string(it->value());
 			};
 
-			srv_log::LogMessage({{"response_time", duration}, {"code", resp.result_int()},
-									{"content_type", contnent_type_str}},
-				"response sent"sv);
+			// srv_log::LogMessage({{"response_time", duration}, {"code", resp.result_int()},
+			// 						{"content_type", contnent_type_str}},
+			// 	"response sent"sv);
 
 			send(std::move(resp));
 		};
