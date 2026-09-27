@@ -1,10 +1,16 @@
 #include "model.h"
 #include "helper.h"
 
+#include <algorithm>
 #include <iostream>
 #include <stdexcept>
+#include <unordered_set>
+#include <utility>
+#include <vector>
 
 namespace model {
+
+using namespace std;
 using namespace std::literals;
 
 
@@ -127,89 +133,88 @@ void Map::Act(std::chrono::steady_clock::duration duration) {
 
 void Map::MoveDog(Dog& dog, Dimension distance) {
 
-	using namespace helper;
+	// using namespace helper;
 
-	// std::cerr << "Start pos " << dog.GetPosition().x << " " << dog.GetPosition().x << std::endl; // =========== DBG LOG !!!
 	if (!dog.IsMove()) {
 		return;
 	}
-	// finder road by position
-	auto& roads = GetRoads();
-	auto road_finder = [&roads](Point pos) -> const Road* {
-		for (auto& road : roads) {
-			if (road.GetRoadRect().IsPointInBound(pos)) {
-				return &road;
-			}
-		}
-		return nullptr;
-	};
+	
+	Point curr_pos = dog.GetPosition();
 
+	// evaluate new position
+	Point expected_pos = dog.GetPosition();
+	if (dog.GetDirection() == Direction::NORTH) {
+		expected_pos.y -= distance;
+	} else if (dog.GetDirection() == Direction::EAST) {
+		expected_pos.x += distance;
+	} else if (dog.GetDirection() == Direction::SOUTH) {
+		expected_pos.y += distance;
+	} else if (dog.GetDirection() == Direction::WEST) {
+		expected_pos.x -= distance;
+	}
+
+	
 	const Road* curr_road = nullptr;
-	// find current road in cache
+	const Road* prev_road = nullptr;
+	unordered_set<const Road*> visited_roads;
+	
+	// try find current cached road for dog position
 	if (auto road_it = dog_to_road_idx_.find(&dog); road_it != dog_to_road_idx_.cend()) {
 		curr_road = road_it->second;
-	} else {
-		// find dog current road
+		
+	}
+	
+	while (visited_roads.size() != GetRoads().size()) {
 
-		curr_road = road_finder(dog.GetPosition());
+		// road may be taked from cache for first loop
 		if (!curr_road) {
+			// find road for current position in remaining roads
+			for (auto& road : GetRoads()) {
+				if (!visited_roads.contains(&road) && road.GetRoadRect().IsPointInBound(curr_pos)) {
+					curr_road = &road;
+					break;
+				}
+			}
+		}
+
+		if (!curr_road) {
+			// last pos not finded in remainig roads, dog bumped in edge of road
+			dog.Stop();
+			break;
+		}
+
+		// most likely case
+		auto rect = curr_road->GetRoadRect();
+		if (rect.IsPointInBound(expected_pos)) {
+
+			dog_to_road_idx_[&dog] = curr_road;
+			dog.SetPosition(expected_pos);
 			return;
 		}
-		// cache current road
-		dog_to_road_idx_[&dog] = curr_road;
+
+		// Dog bumped into the road edge
+		// Get edge position
+		if (dog.GetDirection() == Direction::NORTH) {
+			curr_pos.y = rect.position.y;
+		} else if (dog.GetDirection() == Direction::EAST) {
+			curr_pos.x = rect.position.x + rect.size.width;
+		} else if (dog.GetDirection() == Direction::SOUTH) {
+			curr_pos.y = rect.position.y + rect.size.height;
+		} else if (dog.GetDirection() == Direction::WEST) {
+			curr_pos.x = rect.position.x;
+		}
+
+		// mark this road as visited
+		visited_roads.insert(curr_road);
+
+		prev_road = curr_road;
+		curr_road = nullptr;
+
 	}
 
-	// calculate new position
-	Point new_pos = dog.GetPosition();
-	if (dog.GetDirection() == Direction::NORTH) {
-		new_pos.y -= distance;
-	} else if (dog.GetDirection() == Direction::EAST) {
-		new_pos.x += distance;
-	} else if (dog.GetDirection() == Direction::SOUTH) {
-		new_pos.y += distance;
-	} else if (dog.GetDirection() == Direction::WEST) {
-		new_pos.x -= distance;
-	}
-
-	Rectangle curr_road_rect = curr_road->GetRoadRect();
-	if (curr_road_rect.IsPointInBound(new_pos)) {
-		// new position in current road
-
-		dog.SetPosition(new_pos);
-		// std::cerr << "New pos " << new_pos.x << " " << new_pos.y << std::endl; // =========== DBG LOG !!!
-		return;
-	}
-
-	// find road of new position and check that old position in same road
-	auto new_road = road_finder(new_pos);
-	if (new_road && new_road->GetRoadRect().IsPointInBound(dog.GetPosition())) {
-		// current dog position in new_road, is correct case
-		// move dog, renew cache, return
-		dog_to_road_idx_[&dog] = new_road;
-		dog.SetPosition(new_pos);
-		// std::cerr << "NewROAD !! New pos " << new_pos.x << " " << new_pos.y << std::endl; // =========== DBG LOG !!!
-		return;
-	}
-
-	// dog bumped into the road edge
-	if (dog.GetDirection() == Direction::NORTH) {
-		new_pos.y = curr_road_rect.position.y;
-	} else if (dog.GetDirection() == Direction::EAST) {
-		new_pos.x = curr_road_rect.position.x + curr_road_rect.size.width;
-	} else if (dog.GetDirection() == Direction::SOUTH) {
-		new_pos.y = curr_road_rect.position.y + curr_road_rect.size.height;
-	} else if (dog.GetDirection() == Direction::WEST) {
-		new_pos.x = curr_road_rect.position.x;
-	}
-	// std::cerr << "Road bump !. pos " << new_pos.x << " " << new_pos.y << std::endl; // =========== DBG LOG !!!
-	dog.SetPosition(new_pos);
-	dog.Stop();
-	return;
+	dog.SetPosition(curr_pos);
+	dog_to_road_idx_[&dog] = prev_road;
 }
-
-// Road* Map::PointInRoad(Point point) {
-// 	return nullptr;
-// }
 
 
 void Game::AddMap(Map map) {
@@ -338,7 +343,7 @@ bool Road::IsVertical() const noexcept {
 	return start_.x == end_.x;
 }
 
-bool Rectangle::IsPointInBound(Point p) {
+bool Rectangle::IsPointInBound(Point p) const {
 	using namespace helper;
 	return LessOrEqual(position.x, p.x) && LessOrEqual(p.x, position.x + size.width) && LessOrEqual(position.y, p.y) &&
 		   LessOrEqual(p.y, position.y + size.height);

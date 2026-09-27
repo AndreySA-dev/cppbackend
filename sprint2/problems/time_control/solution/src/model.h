@@ -26,7 +26,7 @@ struct Size {
 struct Rectangle {
 	Point position;
 	Size size;
-	bool IsPointInBound(Point p);
+	bool IsPointInBound(Point p) const;
 };
 
 struct Offset {

@@ -45,7 +45,7 @@ pair<json::value, game::Code> GameHandler::HandleGameJoinRequest(std::string_vie
 
 	model::Map::Id map_id(std::string{map_id_sv});
 	auto [token, code] = authenticator_.AddUser(name, map_id);
-
+	std::cerr << "HDNL Join token " << *token << std::endl;
 	if (code == auth::Code::OK) {
 
 		auto player_ptr = authenticator_.GetUser(token).first;
@@ -76,10 +76,10 @@ pair<json::value, game::Code> GameHandler::HandleGameJoinRequest(std::string_vie
 				// 		}
 				// 	}
 				// }
-		if (map_ptr->GetRoads().size() > 0) {
-			auto road = map_ptr->GetRoads()[map_ptr->GetRoads().size()];
-			dog_pos = road.GetStart();
-		}
+							if (map_ptr->GetRoads().size() > 0) {
+								auto road = map_ptr->GetRoads()[0];
+								dog_pos = road.GetStart();
+							}
 		new_dog.SetPosition(dog_pos);
 
 		return {{{"authToken", *token}, {"playerId", *player_id}}, game::Code::OK};
@@ -174,20 +174,20 @@ void GameHandler::StopTick() {
 }
 
 void GameHandler::ScheduleTick() {
-	// tick_timer_.expires_after(upd_period_);
-	// auto handle = [self = this->shared_from_this()]() {
-	// 	auto now = std::chrono::steady_clock::now();
-	// 	auto dur = now - self->prev_upd_time_;
-	// 	self->prev_upd_time_ = now;
-	// 	self->UpdateState(dur);
-	// 	self->ScheduleTick();
-	// };
+	tick_timer_.expires_after(upd_period_);
+	auto handle = [self = this->shared_from_this()]() {
+		auto now = std::chrono::steady_clock::now();
+		auto dur = now - self->prev_upd_time_;
+		self->prev_upd_time_ = now;
+		self->UpdateState(dur);
+		self->ScheduleTick();
+	};
 
-	// tick_timer_.async_wait([handle, self = this->shared_from_this()](boost::system::error_code ec) {
-	// 	if (!ec && self->tick_is_enabled_.load()) {
-	// 		net::dispatch(self->game_strand_, handle);
-	// 	}
-	// });
+	tick_timer_.async_wait([handle, self = this->shared_from_this()](boost::system::error_code ec) {
+		if (!ec && self->tick_is_enabled_.load()) {
+			net::dispatch(self->game_strand_, handle);
+		}
+	});
 }
 
 void GameHandler::UpdateState(std::chrono::steady_clock::duration duration) {
