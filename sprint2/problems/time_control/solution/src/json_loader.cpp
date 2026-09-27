@@ -3,6 +3,7 @@
 #include "model.h"
 
 #include <fstream>
+#include <iostream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -72,9 +73,10 @@ model::Map JSONToMap(const json::object& jo) {
 
 	model::Map map(model::Map::Id{JStrToStr(jo.at("id").as_string())}, JStrToStr(jo.at("name").as_string()));
 
-	const json::array& roads = jo.at("roads").as_array();
-	for (const auto& road : roads) {
-		map.AddRoad(JSONToRoad(road.as_object()));
+	const json::array& roads_ja = jo.at("roads").as_array();
+	for (const auto& road_jo : roads_ja) {
+		// std::cerr << "Load road: " << json::serialize(road_jo) << std::endl;
+		map.AddRoad(JSONToRoad(road_jo.as_object()));
 	}
 
 	const json::array& buildings = jo.at("buildings").as_array();
@@ -147,20 +149,22 @@ void RoadToJSON(const model::Road& road, json::object& jo) {
 
 void DogToJSON(const model::Dog& dog, json::object& jo) {
 
-	jo["id"] = *dog.GetId();
-	json::value().emplace_double() = 12.213;
+	// jo["id"] = *dog.GetId();
 	jo["pos"] = json::array({json::value(dog.GetPosition().x), json::value(dog.GetPosition().y)});
 
 	model::Dimension v_speed = 0;
 	model::Dimension h_speed = 0;
-	if (dog.GetDirection() == model::Direction::NORTH) {
-		v_speed = dog.GetSpeed() * -1;
-	} else if (dog.GetDirection() == model::Direction::EAST) {
-		h_speed = dog.GetSpeed();
-	} else if (dog.GetDirection() == model::Direction::SOUTH) {
-		v_speed = dog.GetSpeed();
-	} else if (dog.GetDirection() == model::Direction::WEST) {
-		h_speed = dog.GetSpeed() * -1;
+	if (dog.IsMove()) {
+
+		if (dog.GetDirection() == model::Direction::NORTH) {
+			v_speed = dog.GetSpeed() * -1;
+		} else if (dog.GetDirection() == model::Direction::EAST) {
+			h_speed = dog.GetSpeed();
+		} else if (dog.GetDirection() == model::Direction::SOUTH) {
+			v_speed = dog.GetSpeed();
+		} else if (dog.GetDirection() == model::Direction::WEST) {
+			h_speed = dog.GetSpeed() * -1;
+		}
 	}
 	jo["speed"] = json::array({h_speed, v_speed});
 

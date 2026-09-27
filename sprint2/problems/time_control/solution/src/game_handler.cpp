@@ -61,20 +61,24 @@ pair<json::value, game::Code> GameHandler::HandleGameJoinRequest(std::string_vie
 
 		// generate Dog random position in random road
 		model::Point dog_pos = {0, 0};
-		size_t road_num = map_ptr->GetRoads().size();
-		if (road_num > 0) {
-			auto& road = map_ptr->GetRoads()[helper::GetRandomNum<int>(0, road_num - 1)];
-			auto road_len = road.GetLength();
-			if (road_len > 0) {
-				model::Dimension shift = helper::GetRandomNum<model::Dimension>(0.0, road_len);
-				if (road.IsHorizontal()) {
-					dog_pos.x = std::min(road.GetStart().x, road.GetEnd().x) + shift;
-					dog_pos.y = road.GetStart().y;
-				} else {
-					dog_pos.y = std::min(road.GetStart().y, road.GetEnd().y) + shift;
-					dog_pos.x = road.GetStart().x;
-				}
-			}
+				// size_t road_num = map_ptr->GetRoads().size();
+				// if (road_num > 0) {
+				// 	auto& road = map_ptr->GetRoads()[helper::GetRandomNum<int>(0, road_num - 1)];
+				// 	auto road_len = road.GetLength();
+				// 	if (road_len > 0) {
+				// 		model::Dimension shift = helper::GetRandomNum<model::Dimension>(0.0, road_len);
+				// 		if (road.IsHorizontal()) {
+				// 			dog_pos.x = std::min(road.GetStart().x, road.GetEnd().x) + shift;
+				// 			dog_pos.y = road.GetStart().y;
+				// 		} else {
+				// 			dog_pos.y = std::min(road.GetStart().y, road.GetEnd().y) + shift;
+				// 			dog_pos.x = road.GetStart().x;
+				// 		}
+				// 	}
+				// }
+		if (map_ptr->GetRoads().size() > 0) {
+			auto road = map_ptr->GetRoads()[map_ptr->GetRoads().size()];
+			dog_pos = road.GetStart();
 		}
 		new_dog.SetPosition(dog_pos);
 
@@ -118,7 +122,7 @@ std::pair<json::value, game::Code> GameHandler::HandleActionRequest(
 	if (action == Actions::MOVE) {
 
 		auto dog = user->GetUserDog();
-		// std::cerr << "Mode dog - " << *dog->GetId() << std::endl; // ========================== DEBUG LOG !
+		// std::cerr << "HNDL. Turn dog - " << *dog->GetId() << std::endl; // ========================== DEBUG LOG !
 		if (!dog) {
 			return {json::object{}, game::Code::ANOTHER_ERROR};
 		}
@@ -137,6 +141,7 @@ std::pair<json::value, game::Code> GameHandler::HandleActionRequest(
 		} else {
 			return {{}, game::Code::UNKNOWN_ACTION};
 		}
+		dog->Start();
 		return {json::object{}, game::Code::OK};
 	}
 
@@ -169,28 +174,30 @@ void GameHandler::StopTick() {
 }
 
 void GameHandler::ScheduleTick() {
-	tick_timer_.expires_after(upd_period_);
-	tick_timer_.async_wait([self = this->shared_from_this()](boost::system::error_code ec) {
-		if (!ec && self->tick_is_enabled_.load()) {
-			auto now = std::chrono::steady_clock::now();
-			auto dur = now - self->prev_upd_time_;
-			self->prev_upd_time_ = now;
-			self->UpdateState(dur);
-			self->ScheduleTick();
-		}
-	});
+	// tick_timer_.expires_after(upd_period_);
+	// auto handle = [self = this->shared_from_this()]() {
+	// 	auto now = std::chrono::steady_clock::now();
+	// 	auto dur = now - self->prev_upd_time_;
+	// 	self->prev_upd_time_ = now;
+	// 	self->UpdateState(dur);
+	// 	self->ScheduleTick();
+	// };
+
+	// tick_timer_.async_wait([handle, self = this->shared_from_this()](boost::system::error_code ec) {
+	// 	if (!ec && self->tick_is_enabled_.load()) {
+	// 		net::dispatch(self->game_strand_, handle);
+	// 	}
+	// });
 }
 
 void GameHandler::UpdateState(std::chrono::steady_clock::duration duration) {
 	// std::cerr << "Update. duration - " << duration.count() <<  endl; // ============= DBG LOG !!!
 
 	// handle all maps
-	for (auto& map : game_.GetMaps()) 
-	{
+	for (auto& map : game_.GetMaps()) {
 		// std::cerr << "Act map " << *map.GetId() <<  std::endl; // ============= DBG LOG !!!
 		map.Act(duration);
 	}
-
 }
 
 

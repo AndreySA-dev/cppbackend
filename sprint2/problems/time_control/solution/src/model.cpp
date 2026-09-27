@@ -116,19 +116,23 @@ void Map::Act(std::chrono::steady_clock::duration duration) {
 
 	for (auto& dog : GetDogs()) {
 		auto s = std::chrono::duration<double>(duration).count();
-		std::cerr << "Move dog " << *dog.GetId() << ". Speed-" << dog.GetSpeed() << ". Seconds - " << s
-				  << std::endl; // ============= DBG LOG !!!
+		// std::cerr << "Move dog " << *dog.GetId() << ". Speed-" << dog.GetSpeed() << ". Seconds - " << s
+		// 		  << std::endl; // ============= DBG LOG !!!
 		model::Dimension distance = dog.GetSpeed() * s;
-		std::cerr << "Move dog " << *dog.GetId() << " distance - " << distance
-				  << std::endl; // ============= DBG LOG !!!
+		// std::cerr << "Move dog " << *dog.GetId() << " distance - " << distance
+		// 		  << std::endl; // ============= DBG LOG !!!
 		MoveDog(dog, distance);
 	}
 }
 
-std::pair<const Road*, Point> Map::MoveDog(Dog& dog, Dimension distance) {
+void Map::MoveDog(Dog& dog, Dimension distance) {
 
 	using namespace helper;
-	std::cerr << "Start pos " << dog.GetPosition().x << " " << dog.GetPosition().x << std::endl; // =========== DBG LOG !!!
+
+	// std::cerr << "Start pos " << dog.GetPosition().x << " " << dog.GetPosition().x << std::endl; // =========== DBG LOG !!!
+	if (!dog.IsMove()) {
+		return;
+	}
 	// finder road by position
 	auto& roads = GetRoads();
 	auto road_finder = [&roads](Point pos) -> const Road* {
@@ -149,7 +153,7 @@ std::pair<const Road*, Point> Map::MoveDog(Dog& dog, Dimension distance) {
 
 		curr_road = road_finder(dog.GetPosition());
 		if (!curr_road) {
-			return {nullptr, {0, 0}};
+			return;
 		}
 		// cache current road
 		dog_to_road_idx_[&dog] = curr_road;
@@ -172,8 +176,8 @@ std::pair<const Road*, Point> Map::MoveDog(Dog& dog, Dimension distance) {
 		// new position in current road
 
 		dog.SetPosition(new_pos);
-		std::cerr << "New pos " << new_pos.x << " " << new_pos.y << std::endl; // =========== DBG LOG !!!
-		return {curr_road, new_pos};
+		// std::cerr << "New pos " << new_pos.x << " " << new_pos.y << std::endl; // =========== DBG LOG !!!
+		return;
 	}
 
 	// find road of new position and check that old position in same road
@@ -181,10 +185,10 @@ std::pair<const Road*, Point> Map::MoveDog(Dog& dog, Dimension distance) {
 	if (new_road && new_road->GetRoadRect().IsPointInBound(dog.GetPosition())) {
 		// current dog position in new_road, is correct case
 		// move dog, renew cache, return
-		dog.SetPosition(new_pos);
 		dog_to_road_idx_[&dog] = new_road;
-		std::cerr << "NewROAD !! New pos " << new_pos.x << " " << new_pos.y << std::endl; // =========== DBG LOG !!!
-		return {new_road, new_pos};
+		dog.SetPosition(new_pos);
+		// std::cerr << "NewROAD !! New pos " << new_pos.x << " " << new_pos.y << std::endl; // =========== DBG LOG !!!
+		return;
 	}
 
 	// dog bumped into the road edge
@@ -197,9 +201,10 @@ std::pair<const Road*, Point> Map::MoveDog(Dog& dog, Dimension distance) {
 	} else if (dog.GetDirection() == Direction::WEST) {
 		new_pos.x = curr_road_rect.position.x;
 	}
-	std::cerr << "Road bump !. pos " << new_pos.x << " " << new_pos.y << std::endl; // =========== DBG LOG !!!
+	// std::cerr << "Road bump !. pos " << new_pos.x << " " << new_pos.y << std::endl; // =========== DBG LOG !!!
 	dog.SetPosition(new_pos);
-	return {curr_road, new_pos};
+	dog.Stop();
+	return;
 }
 
 // Road* Map::PointInRoad(Point point) {
@@ -290,6 +295,18 @@ void Dog::SetDirection(model::Direction direction) {
 
 void Dog::SetPosition(const Point pos) {
 	position_ = pos;
+}
+
+void Dog::Start() {
+	on_move_ = true;
+}
+
+void Dog::Stop() {
+	on_move_ = false;
+}
+
+bool Dog::IsMove() const {
+	return on_move_;
 }
 
 

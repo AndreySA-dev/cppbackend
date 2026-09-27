@@ -39,6 +39,7 @@ StringResponse RequestHandler::HandleAPIRequest(HTTPRequest req) {
 		}
 
 		resp = GetStringResponse(json::serialize(resp_j), status, ContentType::APP_JSON);
+		resp.set(http::field::cache_control, "no-cache"sv);
 
 	} else if (target.starts_with(RequestsTexts::API_GAME_JOIN)) {
 		// API requst to join to game =============================
@@ -62,6 +63,7 @@ StringResponse RequestHandler::HandleAPIRequest(HTTPRequest req) {
 
 	} else if (target.starts_with(RequestsTexts::API_GAME_TICK)) {
 		// API shift time =============================
+
 		resp = HandleHttpTickRequest(req);
 
 	} else {
@@ -187,6 +189,8 @@ StringResponse RequestHandler::HandleHttpSetGameActionRequest(HTTPRequest req) {
 
 	// std::cerr << "Token - " << req["Authorization"] << std::endl; // ========================== DEBUG LOG !
 	auto [user_ptr, auth_code] = Authorize(req);
+	// std::cerr << "Action authorize user - " << user_ptr->GetName() << ". dogid - " << *user_ptr->GetUserDog()->GetId()
+	// 		  << endl; // ============= DBG LOG !!!
 	if (auth_code != auth::Code::OK) {
 		return GetAuthorizeErrorResponse(auth_code);
 	}
@@ -203,14 +207,13 @@ StringResponse RequestHandler::HandleHttpSetGameActionRequest(HTTPRequest req) {
 		}
 	}
 
-	// check move is correct value
+	// check move string is correct value
 	if (move.find_first_not_of(model::DirectionTitles) != string::npos) {
 		resp = GetStringResponse(ResponseTemplates::INVALID_ARGUMENT_PARSE_BODY_ERROR_ACTION, http::status::bad_request,
 			ContentType::APP_JSON);
 		resp.set(http::field::cache_control, "no-cache"sv);
 		return resp;
 	}
-
 
 	auto handle_result = game_hndl_->HandleActionRequest(user_ptr, game_handler::Actions::MOVE, move);
 

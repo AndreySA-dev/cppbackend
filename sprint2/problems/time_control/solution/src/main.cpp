@@ -1,10 +1,3 @@
-// curl -i -H "Content-Type: application/json" -X POST "http://192.168.1.206:8080/api/v1/maps"
-// curl -i -d "{\"userName\": \"Mikki\", \"mapId\": \"map1\"}" -H "Content-Type: application/json" -X POST "http://192.168.1.206:8080/api/v1/game/join"
-// curl -i -H "Authorization: Bearer 6516861d89ebfff147bf2eb2b5153ae1" -X GET "http://192.168.1.206:8080/api/v1/game/players"
-// curl -i -H "Authorization: Bearer 6516861d89ebfff147bf2eb2b5153ae1" -X GET "http://192.168.1.206:8080/api/v1/game/state"
-// curl -i  -X GET "http://192.168.1.206:8080/api/v1/game/player/action" -d "{\"move\": \"R\"}" -H "Content-Type: application/json" -H "Authorization: Bearer "  
-// curl -i  -X POST "http://192.168.1.206:8080/api/v1/game/tick"  -H "Content-Type: application/json" -d "{\"timeDelta\":10}"
-
 #include "sdk.h"
 #include "json_loader.h"
 #include "log.h"
@@ -80,7 +73,7 @@ int main(int argc, const char* argv[]) {
 
 		// game_handler::GameHandler game_handler(game, ioc);
 		auto game_hndl = std::make_shared<game_handler::GameHandler>(game, ioc);
-		game_hndl->StartTick();
+		// game_hndl->StartTick();
 		
 		// 4. Создаём обработчик HTTP-запросов и связываем его с моделью игры
 		std::string wwwroot_path = argv[2];

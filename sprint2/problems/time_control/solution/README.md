@@ -69,3 +69,12 @@ bin/game_server ../data/config.json ../static/
 * http://127.0.0.1:8080/api/v1/maps для получения списка карт и
 * http://127.0.0.1:8080/api/v1/map/map1 для получения подробной информации о карте `map1`
 * http://127.0.0.1:8080/ для чтения статического контента (в каталоге static)
+
+crul examples
+
+curl -i -H "Content-Type: application/json" -X POST "http://192.168.1.206:8080/api/v1/maps"
+curl -i -d "{\"userName\": \"Mikki\", \"mapId\": \"map1\"}" -H "Content-Type: application/json" -X POST "http://192.168.1.206:8080/api/v1/game/join"
+curl -i -X GET "http://192.168.1.206:8080/api/v1/game/players" -H "Authorization: Bearer 6516861d89ebfff147bf2eb2b5153ae1"
+curl -i -H "Authorization: Bearer 6516861d89ebfff147bf2eb2b5153ae1" -X GET "http://192.168.1.206:8080/api/v1/game/state"
+curl -i  -X GET "http://192.168.1.206:8080/api/v1/game/player/action" -d "{\"move\": \"R\"}" -H "Content-Type: application/json" -H "Authorization: Bearer "  
+curl -i  -X POST "http://192.168.1.206:8080/api/v1/game/tick"  -H "Content-Type: application/json" -d "{\"timeDelta\":10}"

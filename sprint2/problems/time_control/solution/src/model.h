@@ -150,11 +150,15 @@ class Dog {
 	void SetDirection(model::Direction direction);
 
 	void SetPosition(const Point pos);
+	void Start();
+	void Stop();
+	bool IsMove() const;
 
   private:
 	Point position_ = {0, 0};
 	Speed speed_ = 0.0;
 	Direction direction_ = Direction::NORTH;
+	bool on_move_ = false;
 	Id id_;
 };
 
@@ -203,7 +207,7 @@ class Map {
 	using DogIdToIndex = std::unordered_map<Dog::Id, size_t, util::TaggedHasher<Dog::Id>>;
 	using DogToRoadIdx = std::unordered_map<Dog*, const Road*>;
 	
-	std::pair<const Road*, Point> MoveDog(Dog& dog, Dimension distance);
+	void MoveDog(Dog& dog, Dimension distance);
 	Id id_;
 	std::string name_;
 	Roads roads_;
