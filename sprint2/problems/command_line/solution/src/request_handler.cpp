@@ -25,46 +25,40 @@ StringResponse RequestHandler::HandleAPIRequest(HTTPRequest req) {
 
 	auto target = req.target();
 
-	if (target.starts_with(RequestsTexts::API_MAPS)) {
-		// API request for MAP ==========================================
+	if (target == RequestsTexts::API_GAME_STATE) {
+		// API request state of all players
 
-		auto [resp_j, code] = game_hndl_->HandleAPIMapRequest(target);
-		http::status status;
-		if (code == game::Code::OK) {
-			status = http::status::ok;
-		} else if (code == game::Code::NOT_FOUND) {
-			status = http::status::not_found;
-		} else {
-			status = http::status::bad_request;
-		}
+		resp = HandleHttpGetGameStateRequest(req);
 
-		resp = GetStringResponse(json::serialize(resp_j), status, ContentType::APP_JSON);
-		resp.set(http::field::cache_control, "no-cache"sv);
+	} else if (target == RequestsTexts::API_GAME_ACTION) {
+		// API requst change player state
 
-	} else if (target.starts_with(RequestsTexts::API_GAME_JOIN)) {
+		resp = HandleHttpSetGameActionRequest(req);
+
+	} else if (target == RequestsTexts::API_GAME_TICK) {
+		// API shift time
+
+		resp = HandleHttpTickRequest(req);
+
+	} else if (target == RequestsTexts::API_MAPS) {
+		// request all maps list
+
+		resp = HandleHttpGetMapsRequest(req);
+
+	} else if (target.starts_with(RequestsTexts::API_ONE_MAP)) {
+		// request one map
+
+		resp = HandleHttpGetMapRequest(req);
+
+	} else if (target == RequestsTexts::API_GAME_JOIN) {
 		// API requst to join to game =============================
 
 		resp = HandleHttpGameJoinRequest(req);
 
 	} else if (target.starts_with(RequestsTexts::API_GAME_PLAYERS)) {
-		// API requst get all players =============================
+		// API request list all players =============================
 
 		resp = HandleHttpGetPlayersRequest(req);
-
-	} else if (target.starts_with(RequestsTexts::API_GAME_STATE)) {
-		// API requst get all players =============================
-
-		resp = HandleHttpGetGameStateRequest(req);
-
-	} else if (target.starts_with(RequestsTexts::API_GAME_ACTION)) {
-		// API requst change player state =============================
-
-		resp = HandleHttpSetGameActionRequest(req);
-
-	} else if (target.starts_with(RequestsTexts::API_GAME_TICK)) {
-		// API shift time =============================
-
-		resp = HandleHttpTickRequest(req);
 
 	} else {
 		resp = GetStringResponse(ResponseTemplates::BAD_REQUEST, http::status::bad_request, ContentType::APP_JSON);
@@ -73,12 +67,66 @@ StringResponse RequestHandler::HandleAPIRequest(HTTPRequest req) {
 	return resp;
 }
 
+
+StringResponse RequestHandler::HandleHttpGetMapsRequest(HTTPRequest req) const {
+	StringResponse resp;
+
+	// check method GET or HEAD
+	if (!(req.method() == http::verb::get || req.method() == http::verb::head)) {
+		resp = GetStringResponse(
+			ResponseTemplates::INVALID_METHOD, http::status::method_not_allowed, ContentType::APP_JSON);
+		resp.set(http::field::cache_control, "no-cache"sv);
+		resp.set(http::field::allow, "GET, HEAD");
+		return resp;
+	}
+
+	auto [maps_j, code] = game_hndl_->HandleGetMapsRequest();
+	resp = GetStringResponse(json::serialize(maps_j), http::status::ok, ContentType::APP_JSON);
+	resp.set(http::field::cache_control, "no-cache"sv);
+	return resp;
+}
+
+StringResponse RequestHandler::HandleHttpGetMapRequest(HTTPRequest req) const {
+	StringResponse resp;
+
+	// check method GET or HEAD
+	if (!(req.method() == http::verb::get || req.method() == http::verb::head)) {
+
+		resp = GetStringResponse(
+			ResponseTemplates::INVALID_METHOD, http::status::method_not_allowed, ContentType::APP_JSON);
+		resp.set(http::field::cache_control, "no-cache"sv);
+		resp.set(http::field::allow, "GET, HEAD");
+		return resp;
+	}
+
+	auto target = req.target();
+	if (target.size() > RequestsTexts::API_ONE_MAP.size()) {
+
+		auto map_id = target.substr(RequestsTexts::API_ONE_MAP.size()); // trim forward part "/api/v1/map/"
+		auto [map_j, code] = game_hndl_->HandleGetMapRequest(map_id);
+		http::status status;
+		if (code == game::Code::OK) {
+			status = http::status::ok;
+		} else if (code == game::Code::NOT_FOUND) {
+			status = http::status::not_found;
+		} else {
+			status = http::status::bad_request;
+		}
+		resp = GetStringResponse(json::serialize(map_j), status, ContentType::APP_JSON);
+		resp.set(http::field::cache_control, "no-cache"sv);
+	}
+
+	return resp;
+}
+
+
 StringResponse RequestHandler::HandleHttpGameJoinRequest(HTTPRequest req) {
 
 	StringResponse join_resp;
 
-	// allow only post method
+	// allow only POST method
 	if (req.method() != http::verb::post) {
+
 		join_resp = GetStringResponse(
 			ResponseTemplates::INVALID_METHOD_ONLY_POST, http::status::method_not_allowed, ContentType::APP_JSON);
 		join_resp.set(http::field::cache_control, "no-cache"sv);
@@ -125,7 +173,7 @@ StringResponse RequestHandler::HandleHttpGameJoinRequest(HTTPRequest req) {
 	return join_resp;
 }
 
-StringResponse RequestHandler::HandleHttpGetPlayersRequest(HTTPRequest req) {
+StringResponse RequestHandler::HandleHttpGetPlayersRequest(HTTPRequest req) const {
 
 	StringResponse resp;
 
@@ -151,7 +199,7 @@ StringResponse RequestHandler::HandleHttpGetPlayersRequest(HTTPRequest req) {
 	return resp;
 }
 
-StringResponse RequestHandler::HandleHttpGetGameStateRequest(HTTPRequest req) {
+StringResponse RequestHandler::HandleHttpGetGameStateRequest(HTTPRequest req) const {
 
 	StringResponse resp;
 	// check method GET or HEAD
@@ -261,7 +309,7 @@ StringResponse RequestHandler::HandleHttpTickRequest(HTTPRequest req) {
 }
 
 
-std::pair<user::User*, auth::Code> RequestHandler::Authorize(const HTTPRequest& req) {
+std::pair<user::User*, auth::Code> RequestHandler::Authorize(const HTTPRequest& req) const {
 
 	auto auth_str = req["Authorization"];
 
@@ -279,7 +327,7 @@ std::pair<user::User*, auth::Code> RequestHandler::Authorize(const HTTPRequest& 
 }
 
 
-StringResponse RequestHandler::GetAuthorizeErrorResponse(auth::Code auth_code) {
+StringResponse RequestHandler::GetAuthorizeErrorResponse(auth::Code auth_code) const {
 
 	StringResponse resp;
 	if (auth_code == auth::Code::INVALID_TOKEN_HEADER_MISSING || auth_code == auth::Code::TOKEN_IS_INCORRECT) {
@@ -294,7 +342,8 @@ StringResponse RequestHandler::GetAuthorizeErrorResponse(auth::Code auth_code) {
 }
 
 
-StringResponse RequestHandler::GetStringResponse(std::string_view text, http::status status, std::string_view type) {
+StringResponse RequestHandler::GetStringResponse(
+	std::string_view text, http::status status, std::string_view type) const {
 
 	StringResponse response(status, 11);
 	response.body() = text;

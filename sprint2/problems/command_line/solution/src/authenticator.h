@@ -15,16 +15,11 @@ namespace auth {
 class Authenticator {
 	public:
 
-	// enum class Code {
-	// 	OK,
-	// 	TOKEN_IS_INCORRECT,
-	// 	PLAYER_NOT_FOUND
-	// };
-
 	Authenticator(model::Game& game);
 	std::pair<token::Token, Code> AddUser(std::string_view name, model::Map::Id map_id);
 	std::pair<user::User*, Code> GetUser(token::Token token);
 	user::Users& GetUsers();
+	const user::Users& GetUsers() const;
 	bool TokenIsCorrect(const token::Token& token);
 
 

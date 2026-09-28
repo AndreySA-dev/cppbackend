@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.11)
 
-project(game_project CXX)
+project(game_server CXX)
 set(CMAKE_CXX_STANDARD 20)
 
 include(${CMAKE_BINARY_DIR}/conanbuildinfo_multi.cmake)
@@ -35,6 +35,10 @@ add_executable(game_server
 	src/authenticator.h
 	src/authenticator.cpp
 	src/perf_timer.h
+	src/commandline_parser.h
+	src/commandline_parser.cpp
+	src/run.h
+	src/run.cpp
 )
 
 target_include_directories(game_server PRIVATE CONAN_PKG::boost)

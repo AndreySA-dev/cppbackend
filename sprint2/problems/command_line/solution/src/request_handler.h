@@ -170,27 +170,27 @@ class RequestHandler : public std::enable_shared_from_this<RequestHandler> {
 
   private:
 	StringResponse HandleAPIRequest(HTTPRequest req);
+	StringResponse HandleHttpGetMapsRequest(HTTPRequest req) const;
+	StringResponse HandleHttpGetMapRequest(HTTPRequest req) const;
 	StringResponse HandleHttpGameJoinRequest(HTTPRequest req);
-	StringResponse HandleHttpGetPlayersRequest(HTTPRequest req);
-	StringResponse HandleHttpGetGameStateRequest(HTTPRequest req);
+	StringResponse HandleHttpGetPlayersRequest(HTTPRequest req) const;
+	StringResponse HandleHttpGetGameStateRequest(HTTPRequest req) const;
 	StringResponse HandleHttpSetGameActionRequest(HTTPRequest req);
 	StringResponse HandleHttpTickRequest(HTTPRequest req);
 
-	std::pair<user::User*, auth::Code> Authorize(const HTTPRequest& req);
+	std::pair<user::User*, auth::Code> Authorize(const HTTPRequest& req) const;
 
-	StringResponse GetAuthorizeErrorResponse(auth::Code auth_code);
+	StringResponse GetAuthorizeErrorResponse(auth::Code auth_code) const;
 
 	CommonResponse GetFileResponse(HTTPRequest req);
 
-	StringResponse GetStringResponse(std::string_view text, http::status status, std::string_view type);
+	StringResponse GetStringResponse(std::string_view text, http::status status, std::string_view type) const;
 
 	std::string_view GetTypeByExt(std::string_view ext) const;
 
-	// bool keep_alive;
 	model::Game& game_;
 	GameHandlerPtr game_hndl_;
 	std::filesystem::path wwwroot_path_;
-	// net::strand<net::io_context::executor_type> api_strand_;
 };
 
 

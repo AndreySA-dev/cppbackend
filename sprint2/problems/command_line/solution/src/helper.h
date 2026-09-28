@@ -7,7 +7,7 @@
 
 namespace helper {
 
-std::string URLDecode(const std::string_view encoded);
+[[nodiscard]] std::string URLDecode(const std::string_view encoded);
 
 // int random_int(int min, int max);
 // int random_double(double min, double max);

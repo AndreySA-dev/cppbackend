@@ -2,11 +2,10 @@
 #include "helper.h"
 
 #include <algorithm>
-#include <iostream>
 #include <stdexcept>
 #include <unordered_set>
 #include <utility>
-#include <vector>
+
 
 namespace model {
 
@@ -121,12 +120,7 @@ std::optional<Speed> Map::GetDogDefaultSpeed() const noexcept {
 void Map::Act(std::chrono::steady_clock::duration duration) {
 
 	for (auto& dog : GetDogs()) {
-		auto s = std::chrono::duration<double>(duration).count();
-		// std::cerr << "Move dog " << *dog.GetId() << ". Speed-" << dog.GetSpeed() << ". Seconds - " << s
-		// 		  << std::endl; // ============= DBG LOG !!!
-		model::Dimension distance = dog.GetSpeed() * s;
-		// std::cerr << "Move dog " << *dog.GetId() << " distance - " << distance
-		// 		  << std::endl; // ============= DBG LOG !!!
+		model::Dimension distance = dog.GetSpeed() * std::chrono::duration<double>(duration).count();
 		MoveDog(dog, distance);
 	}
 }
@@ -316,7 +310,7 @@ bool Dog::IsMove() const {
 
 
 char DirectionToChar(model::Direction dir) {
-	return model::DirectionTitles[static_cast<char>(dir)];
+	return model::DirectionTitles[static_cast<unsigned char>(dir)];
 }
 
 // Direction ChatToDirection(char dir_char) {

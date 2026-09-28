@@ -1,15 +1,13 @@
 #pragma once
 
+#include "model.h"
+
 #include <boost/json.hpp>
 #include <filesystem>
-
-#include "model.h"
 
 namespace json_loader {
 
 namespace json = boost::json;
-
-
 
 void DogToJSON(const model::Dog& dog, json::object& jo);
 

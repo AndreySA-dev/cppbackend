@@ -33,32 +33,11 @@ struct Offset {
 	Dimension dx, dy;
 };
 
-// struct Speed {
-// 	Dimension h = 0.0;
-// 	Dimension v = 0.0;
-// };
 
 
 enum class Direction : unsigned char { NORTH = 0, EAST, SOUTH, WEST };
 const char* const DirectionTitles = "URDL";
 char DirectionToChar(model::Direction dir);
-// Direction ChatToDirection(char dir_char);
-
-// class Kinematics {
-//   public:
-// 	Kinematics() = default;
-
-// 	Speed GetSpeed() const noexcept;
-// 	Direction GetDirection() const noexcept;
-// 	void SetSpeed(Dimension v, Dimension h);
-// 	void SetDirection(Dimension v, Dimension h);
-
-//   private:
-// 	Speed speed_;
-// 	Direction direction_;
-// };
-
-// inline const Speed NULL_SPEED = {0.0, 0.0};
 
 
 class Road {

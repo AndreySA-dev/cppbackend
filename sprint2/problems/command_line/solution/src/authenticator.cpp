@@ -49,6 +49,10 @@ user::Users& Authenticator::GetUsers() {
 	return users_;
 }
 
+const user::Users& Authenticator::GetUsers() const {
+	return users_;
+}
+
 
 bool Authenticator::TokenIsCorrect(const token::Token& token) {
 	return token::TokenIsCorrect(token);

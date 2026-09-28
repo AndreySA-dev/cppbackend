@@ -56,17 +56,20 @@ class Users {
 	// const Player* GetPlayer(std::string name) const;
 
 	iterator begin();
+	const const_iterator begin() const;
 	const const_iterator cbegin() const;
+
 	iterator end();
+	const const_iterator end() const;
 	const const_iterator cend() const;
 
   private:
 	Users(const Users&) = delete;
 	Users& operator=(const Users&) = delete;
 
-	std::deque<User> players_;
-	std::unordered_map<User::Id, size_t, User::IdHasher> player_id_to_index_;
-	std::unordered_map<std::string_view, User::Id> player_name_to_index_;
+	std::deque<User> users_;
+	std::unordered_map<User::Id, size_t, User::IdHasher> user_id_to_index_;
+	std::unordered_map<std::string_view, User::Id> user_name_to_index_;
 
 	token::TokenHandler generator_;
 };

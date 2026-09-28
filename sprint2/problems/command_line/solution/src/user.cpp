@@ -63,22 +63,22 @@ User* Users::AddUser(std::string_view name) {
 	// 	throw std::invalid_argument("User with name "s + string(name) + " already exists"s);
 	// }
 
-	const size_t idx = players_.size();
-	decltype(player_id_to_index_.emplace()) add_id_idx_result;
-	decltype(player_name_to_index_.emplace()) add_name_idx_result;
+	const size_t idx = users_.size();
+	decltype(user_id_to_index_.emplace()) add_id_idx_result;
+	decltype(user_name_to_index_.emplace()) add_name_idx_result;
 
 	try {
 
-		auto& new_player = players_.emplace_back(std::string(name));
-		add_id_idx_result = player_id_to_index_.emplace(new_player.GetId(), idx);
-		add_name_idx_result = player_name_to_index_.emplace(new_player.GetName(), idx);
+		auto& new_player = users_.emplace_back(std::string(name));
+		add_id_idx_result = user_id_to_index_.emplace(new_player.GetId(), idx);
+		add_name_idx_result = user_name_to_index_.emplace(new_player.GetName(), idx);
 
 		return &new_player;
 
 	} catch (...) {
 
-		player_id_to_index_.erase(add_id_idx_result.first);
-		player_name_to_index_.erase(add_name_idx_result.first);
+		user_id_to_index_.erase(add_id_idx_result.first);
+		user_name_to_index_.erase(add_name_idx_result.first);
 		throw;
 	}
 
@@ -86,30 +86,38 @@ User* Users::AddUser(std::string_view name) {
 }
 
 User* Users::GetUser(User::Id id) {
-	if (auto it = player_id_to_index_.find(id); it != player_id_to_index_.cend()) {
-		return &players_[it->second];
+	if (auto it = user_id_to_index_.find(id); it != user_id_to_index_.cend()) {
+		return &users_[it->second];
 	}
 	return nullptr;
 }
 
 
 Users::iterator Users::begin() {
-	return players_.begin();
+	return users_.begin();
+}
+
+const Users::const_iterator Users::begin() const {
+	return users_.begin();
 }
 
 
 const Users::const_iterator Users::cbegin() const {
-	return players_.cbegin();
+	return users_.cbegin();
 }
 
 
 Users::iterator Users::end() {
-	return players_.end();
+	return users_.end();
+}
+
+const Users::const_iterator Users::end() const {
+	return const_iterator();
 }
 
 
 const Users::const_iterator Users::cend() const {
-	return players_.cend();
+	return users_.cend();
 }
 
 

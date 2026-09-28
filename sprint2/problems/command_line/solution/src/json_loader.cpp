@@ -1,5 +1,4 @@
 #include "json_loader.h"
-#include "log.h"
 #include "model.h"
 
 #include <fstream>

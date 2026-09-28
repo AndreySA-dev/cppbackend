@@ -15,7 +15,7 @@ namespace detail {
 using namespace std::literals;
 
 struct TokenTag {};
-const size_t TOCKEN_SIZE = 32;
+const size_t TOKEN_SIZE = 32;
 const std::string HEX_CHARS = "0123456789abcdef"s;
 
 } // namespace detail
