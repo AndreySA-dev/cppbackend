@@ -95,18 +95,16 @@ Dog& Map::AddDog(Dog dog) {
 
 Dog* Map::GetDog(Dog::Id id) {
 
-	if (auto it = dog_id_to_idx_.find(id); it != dog_id_to_idx_.cend()) {
-		return &dogs_[it->second];
-	}
-	return nullptr;
+	auto it = dog_id_to_idx_.find(id);
+	return it != dog_id_to_idx_.cend() ? &dogs_[it->second] : nullptr;
+
 }
 
 const Dog* Map::GetDog(Dog::Id id) const {
 
-	if (auto it = dog_id_to_idx_.find(id); it != dog_id_to_idx_.cend()) {
-		return &dogs_[it->second];
-	}
-	return nullptr;
+	auto it = dog_id_to_idx_.find(id);
+	return it != dog_id_to_idx_.cend() ? &dogs_[it->second] : nullptr;
+	
 }
 
 void Map::SetDogDefaultSpeed(std::optional<Speed> speed) noexcept {
@@ -132,7 +130,7 @@ void Map::MoveDog(Dog& dog, Dimension distance) {
 	if (!dog.IsMove()) {
 		return;
 	}
-	
+
 	Point curr_pos = dog.GetPosition();
 
 	// evaluate new position
@@ -147,17 +145,16 @@ void Map::MoveDog(Dog& dog, Dimension distance) {
 		expected_pos.x -= distance;
 	}
 
-	
+
 	const Road* curr_road = nullptr;
 	const Road* prev_road = nullptr;
 	unordered_set<const Road*> visited_roads;
-	
+
 	// try find current cached road for dog position
 	if (auto road_it = dog_to_road_idx_.find(&dog); road_it != dog_to_road_idx_.cend()) {
 		curr_road = road_it->second;
-		
 	}
-	
+
 	while (visited_roads.size() != GetRoads().size()) {
 
 		// road may be taked from cache for first loop
@@ -203,7 +200,6 @@ void Map::MoveDog(Dog& dog, Dimension distance) {
 
 		prev_road = curr_road;
 		curr_road = nullptr;
-
 	}
 
 	dog.SetPosition(curr_pos);
@@ -236,18 +232,14 @@ Game::Maps& Game::GetMaps() noexcept {
 
 const Map* Game::FindMap(const Map::Id& id) const noexcept {
 
-	if (auto it = map_id_to_index_.find(id); it != map_id_to_index_.end()) {
-		return &maps_.at(it->second);
-	}
-	return nullptr;
+	auto it = map_id_to_index_.find(id);
+	return it != map_id_to_index_.end() ? &maps_[it->second] : nullptr;
 }
 
 Map* Game::FindMap(const Map::Id& id) noexcept {
 
-	if (auto it = map_id_to_index_.find(id); it != map_id_to_index_.end()) {
-		return &maps_.at(it->second);
-	}
-	return nullptr;
+	auto it = map_id_to_index_.find(id);
+	return it != map_id_to_index_.cend() ? &maps_[it->second] : nullptr;
 }
 
 
@@ -313,10 +305,6 @@ char DirectionToChar(model::Direction dir) {
 	return model::DirectionTitles[static_cast<unsigned char>(dir)];
 }
 
-// Direction ChatToDirection(char dir_char) {
-// 	Direction dir = Direction::NORTH;
-// 	if (dir_char)
-// }
 
 Dimension Road::GetLength() const noexcept {
 	return IsHorizontal() ? std::abs(end_.x - start_.x) : std::abs(end_.y - start_.y);

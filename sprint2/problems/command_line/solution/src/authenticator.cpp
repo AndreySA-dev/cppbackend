@@ -16,11 +16,7 @@ pair<token::Token, Code> auth::Authenticator::AddUser(string_view name, model::M
 	auto map_ptr = game_.FindMap(map_id);
 
 	if (map_ptr) {
-
-		auto new_player_ptr = users_.AddUser(name);
-
-		if (new_player_ptr) {
-
+		if (auto new_player_ptr = users_.AddUser(name)) {
 			auto new_token = generator_.GetNewToken();
 			tokens_to_users_id_.insert({new_token, new_player_ptr->GetId()});
 			new_player_ptr->SetMap(map_ptr);
@@ -38,11 +34,14 @@ std::pair<user::User*, Code> Authenticator::GetUser(token::Token token) {
 		return {nullptr, Code::TOKEN_IS_INCORRECT};
 	}
 
-	if (auto it = tokens_to_users_id_.find(token); it != tokens_to_users_id_.cend()) {
-		return {users_.GetUser(it->second), Code::OK};
-	}
+	// if (auto it = tokens_to_users_id_.find(token); it != tokens_to_users_id_.cend()) {
+	// 	return {users_.GetUser(it->second), Code::OK};
+	// }
 
-	return {nullptr, Code::PLAYER_NOT_FOUND};
+	// return {nullptr, Code::PLAYER_NOT_FOUND};
+	auto it = tokens_to_users_id_.find(token);
+	return it != tokens_to_users_id_.cend() ?  pair{users_.GetUser(it->second), Code::OK} : pair{nullptr, Code::PLAYER_NOT_FOUND}; 
+
 }
 
 user::Users& Authenticator::GetUsers() {

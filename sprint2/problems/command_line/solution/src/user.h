@@ -53,7 +53,6 @@ class Users {
 
 	User* AddUser(std::string_view name);
 	User* GetUser(User::Id id);
-	// const Player* GetPlayer(std::string name) const;
 
 	iterator begin();
 	const const_iterator begin() const;

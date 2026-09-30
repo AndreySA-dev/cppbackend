@@ -9,8 +9,6 @@ namespace helper {
 
 [[nodiscard]] std::string URLDecode(const std::string_view encoded);
 
-// int random_int(int min, int max);
-// int random_double(double min, double max);
 
 template<typename T>
 T GetRandomNum(T min, T max) {

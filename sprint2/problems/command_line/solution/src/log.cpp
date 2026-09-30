@@ -21,7 +21,6 @@ namespace expr = boost::log::expressions;
 namespace attrs = boost::log::attributes;
 namespace json = boost::json;
 
-// BOOST_LOG_ATTRIBUTE_KEYWORD(line_id, "LineID", unsigned int)
 BOOST_LOG_ATTRIBUTE_KEYWORD(timestamp, "TimeStamp", boost::posix_time::ptime)
 BOOST_LOG_ATTRIBUTE_KEYWORD(json_data, "JSONData", json::object)
 

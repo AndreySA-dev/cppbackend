@@ -179,13 +179,9 @@ class RequestHandler : public std::enable_shared_from_this<RequestHandler> {
 	StringResponse HandleHttpTickRequest(HTTPRequest req);
 
 	std::pair<user::User*, auth::Code> Authorize(const HTTPRequest& req) const;
-
 	StringResponse GetAuthorizeErrorResponse(auth::Code auth_code) const;
-
 	CommonResponse GetFileResponse(HTTPRequest req);
-
 	StringResponse GetStringResponse(std::string_view text, http::status status, std::string_view type) const;
-
 	std::string_view GetTypeByExt(std::string_view ext) const;
 
 	model::Game& game_;

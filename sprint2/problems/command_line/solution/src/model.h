@@ -156,28 +156,22 @@ class Map {
 		return id_;
 	}
 
-	const std::string& GetName() const noexcept;
-
-	const Buildings& GetBuildings() const noexcept;
-
-	const Roads& GetRoads() const noexcept;
-
-	const Offices& GetOffices() const noexcept;
-
-
 	void AddRoad(const Road& road);
-
 	void AddBuilding(const Building& building);
-
 	void AddOffice(Office office);
-
 	Dog& AddDog(Dog dog);
+
+	const std::string& GetName() const noexcept;
+	const Buildings& GetBuildings() const noexcept;
+	const Roads& GetRoads() const noexcept;
+	const Offices& GetOffices() const noexcept;
 	const Dogs& GetDogs() const noexcept;
 	Dogs& GetDogs() noexcept;
 	Dog* GetDog(Dog::Id id);
 	const Dog* GetDog(Dog::Id id) const;
-	void SetDogDefaultSpeed(std::optional<Speed> speed) noexcept;
 	std::optional<Speed> GetDogDefaultSpeed() const noexcept;
+
+	void SetDogDefaultSpeed(std::optional<Speed> speed) noexcept;
 	
 	void Act(std::chrono::steady_clock::duration duration);
 	

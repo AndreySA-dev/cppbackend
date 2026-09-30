@@ -14,7 +14,6 @@ User::Id User::noid = User::Id{std::numeric_limits<size_t>::max()};
 User::User(std::string name) : name_{std::move(name)}, id_{User::Id(next_id_++)} {}
 
 User::User(User&& other) : name_(std::move(other.name_)), id_(std::move(other.id_)) {
-
 	other.id_ = user::User::noid;
 }
 
@@ -48,20 +47,12 @@ const model::Map* User::GetMap() const {
 
 model::Dog* User::GetUserDog() {
 	
-	if(map_ptr_) {
-		return map_ptr_->GetDog(model::Dog::Id(*id_));
-	}
-	return nullptr;
-	
+	return map_ptr_ ? map_ptr_->GetDog(model::Dog::Id(*id_)) : nullptr;
+
 }
 
 
 User* Users::AddUser(std::string_view name) {
-
-
-	// if (player_name_to_index_.find(name) != player_name_to_index_.cend()) {
-	// 	throw std::invalid_argument("User with name "s + string(name) + " already exists"s);
-	// }
 
 	const size_t idx = users_.size();
 	decltype(user_id_to_index_.emplace()) add_id_idx_result;
@@ -86,10 +77,10 @@ User* Users::AddUser(std::string_view name) {
 }
 
 User* Users::GetUser(User::Id id) {
-	if (auto it = user_id_to_index_.find(id); it != user_id_to_index_.cend()) {
-		return &users_[it->second];
-	}
-	return nullptr;
+
+	auto it = user_id_to_index_.find(id);
+	return it != user_id_to_index_.cend() ?  &users_[it->second] : nullptr;
+	
 }
 
 

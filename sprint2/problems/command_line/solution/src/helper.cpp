@@ -60,15 +60,4 @@ bool GreatOrEqual(double a, double b, double eps) {
 }
 
 
-// int random_int(int min, int max) {
-// 	static std::mutex mut;
-//     static std::random_device rd;
-//     static std::mt19937 gen(rd());
-//     std::lock_guard<std::mutex> lock(mut);
-//     std::uniform_real_distribution<> dist(min, max);
-
-//     return dist(gen);
-// }
-
-
 } // namespace helper

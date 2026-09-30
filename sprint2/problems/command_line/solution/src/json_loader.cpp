@@ -74,7 +74,6 @@ model::Map JSONToMap(const json::object& jo) {
 
 	const json::array& roads_ja = jo.at("roads").as_array();
 	for (const auto& road_jo : roads_ja) {
-		// std::cerr << "Load road: " << json::serialize(road_jo) << std::endl;
 		map.AddRoad(JSONToRoad(road_jo.as_object()));
 	}
 

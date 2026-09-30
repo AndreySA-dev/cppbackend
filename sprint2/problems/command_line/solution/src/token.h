@@ -31,13 +31,7 @@ bool TokenIsCorrect(std::string token);
 class TokenHandler {
   public:
 	TokenHandler() = default;
-	// TokenGenerator(const TokenGenerator&) = delete;
-	// TokenGenerator(TokenGenerator&&) = delete;
-	// TokenGenerator& operator=(const TokenGenerator&) = delete;
-	// TokenGenerator& operator=(TokenGenerator&&) = delete;
-
 	Token GetNewToken();
-
 
   private:
 	template <typename T>
@@ -46,9 +40,7 @@ class TokenHandler {
 		constexpr int char_num = sizeof(T) * 8 / 4; // 4 bit in HEX char
 
 		assert(pos + char_num <= str.size());
-
 		size_t hi_bound = pos + char_num;
-
 		for (; pos < hi_bound; ++pos) {
 			str[pos] = detail::HEX_CHARS[number & 0xF]; // get only 4 lower bits (from numeric 0 to 15)
 			number = number >> 4;

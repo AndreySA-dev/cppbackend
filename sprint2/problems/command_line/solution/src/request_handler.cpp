@@ -15,8 +15,8 @@ namespace net = boost::asio;
 
 
 RequestHandler::RequestHandler(
-	model::Game& game, GameHandlerPtr game_hndl, const std::string& root_path /*, net::io_context& ctx */)
-	: game_{game}, game_hndl_(game_hndl), wwwroot_path_{root_path} /*, api_strand_{net::make_strand(ctx)} */ {}
+	model::Game& game, GameHandlerPtr game_hndl, const std::string& root_path )
+	: game_{game}, game_hndl_(game_hndl), wwwroot_path_{root_path} {}
 
 
 StringResponse RequestHandler::HandleAPIRequest(HTTPRequest req) {
@@ -144,12 +144,15 @@ StringResponse RequestHandler::HandleHttpGameJoinRequest(HTTPRequest req) {
 		name = data_j.as_object().at("userName").as_string();
 		map_id = data_j.as_object().at("mapId").as_string();
 
-	} catch (...) {
-		// std::cerr << e.what() << std::endl;
+	} catch (const json::error_category&) {
+
 		join_resp = GetStringResponse(ResponseTemplates::INVALID_ARGUMENT_PARSE_BODY_ERROR_JOIN_GAME,
 			http::status::bad_request, ContentType::APP_JSON);
 		join_resp.set(http::field::cache_control, "no-cache"sv);
 		return join_resp;
+		
+	} catch (...) {
+		throw;
 	}
 
 	if (name.size() == 0) {
@@ -235,7 +238,6 @@ StringResponse RequestHandler::HandleHttpSetGameActionRequest(HTTPRequest req) {
 		return resp;
 	}
 
-	// std::cerr << "Token - " << req["Authorization"] << std::endl; // ========================== DEBUG LOG !
 	auto [user_ptr, auth_code] = Authorize(req);
 	std::cerr << "Action authorize user - " << user_ptr->GetName() << ". dogid - " << *user_ptr->GetUserDog()->GetId()
 			  << endl; // ============= DBG LOG !!!
@@ -355,10 +357,10 @@ StringResponse RequestHandler::GetStringResponse(
 
 
 std::string_view RequestHandler::GetTypeByExt(std::string_view ext) const {
-	if (auto it = MIMEs.find(ext); it != MIMEs.end()) {
-		return it->second;
-	}
-	return ContentType::APP_OCTETSTREAM;
+
+	auto it = MIMEs.find(ext);
+	return it != MIMEs.end() ? it->second : ContentType::APP_OCTETSTREAM;
+	
 }
 
 CommonResponse RequestHandler::GetFileResponse(HTTPRequest req) {

@@ -26,11 +26,8 @@ std::pair<json::value, game::Code> GameHandler::HandleGetMapsRequest() const {
 std::pair<json::value, game::Code> GameHandler::HandleGetMapRequest(std::string_view map_id) const {
 
 	auto maps = GetMap(std::string(map_id));
-
-	if (maps) {
-		return {std::move(*maps), game::Code::OK};
-	}
-	return {ResponseTemplates::MAP_NOT_FOUND, game::Code::NOT_FOUND};
+	return (maps) ? pair{std::move(*maps), game::Code::OK} : pair{ResponseTemplates::MAP_NOT_FOUND, game::Code::NOT_FOUND};
+	
 }
 
 
@@ -38,7 +35,6 @@ pair<json::value, game::Code> GameHandler::HandleGameJoinRequest(std::string_vie
 
 	model::Map::Id map_id(std::string{map_id_sv});
 	auto [token, code] = authenticator_.AddUser(name, map_id);
-	// std::cerr << "HDNL Join token " << *token << std::endl;
 	if (code == auth::Code::OK) {
 
 		auto player_ptr = authenticator_.GetUser(token).first;
@@ -49,7 +45,6 @@ pair<json::value, game::Code> GameHandler::HandleGameJoinRequest(std::string_vie
 		}
 
 		auto player_id = player_ptr->GetId();
-
 		auto& new_dog = map_ptr->AddDog(model::Dog::Id(*player_id));
 
 		model::Point dog_pos = {0, 0};
@@ -100,9 +95,7 @@ pair<json::value, game::Code> GameHandler::HandleGetPlayersRequest() const {
 std::pair<json::value, game::Code> GameHandler::HandleGetStateRequest(user::User* user_ptr) const {
 
 	json::object jo;
-
 	auto map_ptr = user_ptr->GetMap();
-
 	json_loader::MapToDogsJSON(*map_ptr, jo);
 
 	return {jo, game::Code::OK};
@@ -114,7 +107,6 @@ std::pair<json::value, game::Code> GameHandler::HandleActionRequest(
 	if (action == Actions::MOVE) {
 
 		auto dog = user->GetUserDog();
-		// std::cerr << "HNDL. Turn dog - " << *dog->GetId() << std::endl; // ========================== DEBUG LOG !
 		if (!dog) {
 			return {json::object{}, game::Code::ANOTHER_ERROR};
 		}
@@ -129,7 +121,7 @@ std::pair<json::value, game::Code> GameHandler::HandleActionRequest(
 			dog->SetDirection(model::Direction::WEST);
 		} else if (prop == "") {
 			// "" -> STOP DOG
-			// dog->SetSpeed(0.0);
+			// dog->SetSpeed(0.0); <-- TO-DO
 		} else {
 			return {{}, game::Code::UNKNOWN_ACTION};
 		}
@@ -145,6 +137,7 @@ std::pair<json::value, game::Code> GameHandler::HandleTickRequest(size_t millise
 	if (milliseconds > 0) {
 		UpdateState(std::chrono::milliseconds(milliseconds));
 	}
+	
 	return {{}, game::Code::OK};
 }
 
@@ -160,7 +153,6 @@ net::strand<net::io_context::executor_type>& GameHandler::GetStrand() {
 void GameHandler::StartTick() {
 
 	if (tick_period_ != 0ns) {
-
 		tick_is_enabled_.store(true);
 		ScheduleTick();
 	}
@@ -188,11 +180,8 @@ void GameHandler::ScheduleTick() {
 }
 
 void GameHandler::UpdateState(std::chrono::steady_clock::duration duration) {
-	// std::cerr << "Update. duration - " << duration.count() <<  endl; // ============= DBG LOG !!!
-
 	// handle all maps
 	for (auto& map : game_.GetMaps()) {
-		// std::cerr << "Act map " << *map.GetId() <<  std::endl; // ============= DBG LOG !!!
 		map.Act(duration);
 	}
 }
@@ -222,26 +211,5 @@ optional<json::value> GameHandler::GetMap(const std::string id) const {
 
 	return nullopt;
 }
-
-
-// json::value GameHandler::AddPlayer(std::string_view name, std::string_view map_id) {
-
-// 	auto [token, code] = authenticator_.AddPlayer(name, model::Map::Id{string{map_id}});
-// 	json::value jv;
-
-// 	if (code == game::Code::OK) {
-
-// 		auto id = authenticator_.GetPlayer(token)->GetId();
-// 		jv.as_object() = {{"authToken", *token}, {"playerId", *id}};
-
-// 	} else if (code == game::Code::MAP_NOT_FOUND) {
-// 		jv.as_object() = {{"code", "mapNotFound"}, {"message", "Map not found"}};
-// 	} else {
-// 		jv = ResponseTemplates::ANOTHER_ERROR;
-// 	}
-
-// 	return jv;
-// };
-
 
 } // namespace game_handler
