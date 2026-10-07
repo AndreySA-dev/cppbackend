@@ -41,7 +41,7 @@ SCENARIO("TV", "[TV]") {
             REQUIRE(!tv.IsTurnedOn());
 
 // Включите эту секцию и доработайте класс TV, чтобы он проходил проверки в ней
-#if 0
+#if 1
             // он не может переключать каналы
             THEN("it can't select any channel") {
                 CHECK_THROWS_AS(tv.SelectChannel(10), std::logic_error);
@@ -73,9 +73,48 @@ SCENARIO("TV", "[TV]") {
             }
             // И затем может выбирать канал с 1 по 99
             AND_THEN("it can select channel from 1 to 99") {
-                /* Реализуйте самостоятельно эту секцию */
+                tv.SelectChannel(2);
+				CHECK(tv.GetChannel() == 2);
+                tv.SelectChannel(99);
+				CHECK(tv.GetChannel() == 99);
+                tv.SelectChannel(50);
+				CHECK(tv.GetChannel() == 50);
             }
             /* Реализуйте самостоятельно остальные тесты */
         }
     }
+}
+
+TEST_CASE("TV second part", "[TV2]") {
+	TV tv;
+	tv.TurnOn();
+	REQUIRE(tv.IsTurnedOn());
+	
+	SECTION("Select wrong channel") {
+
+		CHECK(tv.GetChannel() == 1);
+		CHECK_THROWS_AS(tv.SelectChannel(-5), std::out_of_range);
+		CHECK_THROWS_AS(tv.SelectChannel(105), std::out_of_range);
+	}
+
+	SECTION("Test SelectLastViewedChannel") {
+		CHECK(tv.GetChannel() == 1);
+		tv.SelectChannel(5);
+		CHECK(tv.GetChannel() == 5);
+		tv.SelectLastViewedChannel();
+		CHECK(tv.GetChannel() == 1);
+		
+		tv.SelectChannel(15);
+		tv.SelectChannel(21);
+		tv.SelectLastViewedChannel();
+		CHECK(tv.GetChannel() == 15);
+		tv.SelectLastViewedChannel();
+		CHECK(tv.GetChannel() == 21);
+
+		tv.TurnOff();
+		CHECK_THROWS_AS(tv.SelectLastViewedChannel(), std::logic_error);
+
+	}
+
+
 }

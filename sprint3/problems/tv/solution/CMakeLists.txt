@@ -13,14 +13,14 @@ add_executable(app
 	src/controller.h
 )
 
-add_executable(catch_tv_tests
+add_executable(tests
 	tests/catch_tv_tests.cpp
 	tests/catch_controller_tests.cpp
 	src/tv.h
 	src/menu.h
 	src/controller.h
 )
-target_link_libraries(catch_tv_tests PRIVATE CONAN_PKG::catch2)
+target_link_libraries(tests PRIVATE CONAN_PKG::catch2)
 
 # add_executable(google_tv_tests
 # 	tests/google_tv_tests.cpp
