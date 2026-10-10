@@ -103,7 +103,7 @@ Users::iterator Users::end() {
 }
 
 const Users::const_iterator Users::end() const {
-	return const_iterator();
+	return users_.cend();
 }
 
 
