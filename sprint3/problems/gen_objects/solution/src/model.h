@@ -33,6 +33,13 @@ struct Offset {
 	Dimension dx, dy;
 };
 
+// struct Color {
+// 	char red = 0;
+// 	char green = 0;
+// 	char blue = 0;
+// };
+
+using Color = std::string;
 
 enum class Direction : unsigned char { NORTH = 0, EAST, SOUTH, WEST };
 const char* const DirectionTitles = "URDL";
@@ -140,6 +147,15 @@ class Dog {
 	Id id_;
 };
 
+struct LootType {
+	using Id = util::Tagged<size_t, LootType>;
+	std::string name;
+    std::string file;
+    std::string type;
+    double rotation = 0.0;
+	Color color = "#000000";
+	double scale = 0.0;
+};
 
 class Map {
   public:
@@ -148,6 +164,7 @@ class Map {
 	using Buildings = std::vector<Building>;
 	using Offices = std::vector<Office>;
 	using Dogs = std::vector<Dog>;
+	using LootTypes = std::vector<LootType>;
 
 	Map(Id id, std::string name) noexcept : id_(std::move(id)), name_(std::move(name)) {}
 
@@ -155,23 +172,27 @@ class Map {
 		return id_;
 	}
 
-	void AddRoad(const Road& road);
-	void AddBuilding(const Building& building);
-	void AddOffice(Office office);
-	Dog& AddDog(Dog dog);
-
 	const std::string& GetName() const noexcept;
-	const Buildings& GetBuildings() const noexcept;
+	void AddRoad(const Road& road);
 	const Roads& GetRoads() const noexcept;
+	void AddBuilding(const Building& building);
+	const Buildings& GetBuildings() const noexcept;
+	void AddOffice(Office office);
 	const Offices& GetOffices() const noexcept;
+	
+	
+	Dog& AddDog(Dog dog);
 	const Dogs& GetDogs() const noexcept;
 	Dogs& GetDogs() noexcept;
 	Dog* GetDog(Dog::Id id);
 	const Dog* GetDog(Dog::Id id) const;
 	std::optional<Speed> GetDogDefaultSpeed() const noexcept;
-
 	void SetDogDefaultSpeed(std::optional<Speed> speed) noexcept;
-
+	
+	void AddLootType(LootType loot_type);
+	LootType* GetLootType(LootType::Id id);
+	const LootTypes& GetLootTypes() const;
+	
 	void Act(std::chrono::steady_clock::duration duration);
 
   private:
@@ -180,6 +201,7 @@ class Map {
 	using DogToRoadIdx = std::unordered_map<Dog*, const Road*>;
 
 	void MoveDog(Dog& dog, Dimension distance);
+
 	Id id_;
 	std::string name_;
 	Roads roads_;
@@ -192,6 +214,9 @@ class Map {
 	DogToRoadIdx dog_to_road_idx_;
 	Dogs dogs_;
 	std::optional<Speed> dog_default_speed_ = std::nullopt;
+
+	LootTypes loot_types_;
+
 };
 
 
@@ -211,7 +236,7 @@ class Game {
 	std::optional<Speed> GetDogDefaultSpeed() const noexcept;
 
 	void SetLootSpawnPreiod(double seconds);
-	double GetLootSpawnPerion() const;
+	double GetLootSpawnPeriod() const;
 	void SetLootSpawnProbability(double probabiluty);
 	double GetLootSpawnProbability() const;
 

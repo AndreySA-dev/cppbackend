@@ -52,11 +52,10 @@ void Run(const start_opt::Args& run_options) {
 		}
 	});
 
-
 	model::Game game = json_loader::LoadGame(run_options.cfg_file_path);
 
-	loot_gen::LootGenerator loot{std::chrono::milliseconds(static_cast<int>(game.GetLootSpawnPerion() * 1000)),
-		game.GetLootSpawnProbability(), []() { return helper::GetRandomNum<double, false>(0.0, 1.0); }};
+	loot_gen::LootGenerator loot{std::chrono::milliseconds(static_cast<int>(game.GetLootSpawnPeriod() * 1000)),
+		game.GetLootSpawnProbability(), []() { return helper::GetRandomNum(0.0, 1.0); }};
 
 	auto game_hndl =
 		std::make_shared<game_handler::GameHandler>(game, ioc, run_options.tick_period, run_options.is_random_spawn, std::move(loot));

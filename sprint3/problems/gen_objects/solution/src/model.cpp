@@ -18,30 +18,13 @@ const std::string& Map::GetName() const noexcept {
 }
 
 
-const Map::Buildings& Map::GetBuildings() const noexcept {
-	return buildings_;
+void Map::AddRoad(const Road& road) {
+	roads_.emplace_back(road);
+	dog_to_road_idx_.clear();
 }
 
 const Map::Roads& Map::GetRoads() const noexcept {
 	return roads_;
-}
-
-const Map::Offices& Map::GetOffices() const noexcept {
-	return offices_;
-}
-
-const Map::Dogs& Map::GetDogs() const noexcept {
-	return dogs_;
-}
-
-Map::Dogs& Map::GetDogs() noexcept {
-	return dogs_;
-}
-
-
-void Map::AddRoad(const Road& road) {
-	roads_.emplace_back(road);
-	dog_to_road_idx_.clear();
 }
 
 
@@ -49,8 +32,12 @@ void Map::AddBuilding(const Building& building) {
 	buildings_.emplace_back(building);
 }
 
+const Map::Buildings& Map::GetBuildings() const noexcept {
+	return buildings_;
+}
 
 void Map::AddOffice(Office office) {
+
 	if (warehouse_id_to_index_.contains(office.GetId())) {
 		throw std::invalid_argument("Duplicate warehouse");
 	}
@@ -64,8 +51,12 @@ void Map::AddOffice(Office office) {
 		offices_.pop_back();
 		throw;
 	}
+
 }
 
+const Map::Offices& Map::GetOffices() const noexcept {
+	return offices_;
+}
 
 Dog& Map::AddDog(Dog dog) {
 
@@ -104,6 +95,28 @@ const Dog* Map::GetDog(Dog::Id id) const {
 	auto it = dog_id_to_idx_.find(id);
 	return it != dog_id_to_idx_.cend() ? &dogs_[it->second] : nullptr;
 }
+
+const Map::Dogs& Map::GetDogs() const noexcept {
+	return dogs_;
+}
+
+Map::Dogs& Map::GetDogs() noexcept {
+	return dogs_;
+}
+
+
+void Map::AddLootType(LootType loot_type) {
+	loot_types_.push_back(std::move(loot_type));
+}
+
+LootType* Map::GetLootType(LootType::Id id) {
+	return *id < loot_types_.size() ? &loot_types_[*id] : nullptr;
+}
+
+const Map::LootTypes& Map::GetLootTypes() const {
+	return loot_types_;
+}
+
 
 void Map::SetDogDefaultSpeed(std::optional<Speed> speed) noexcept {
 	dog_default_speed_ = speed;
@@ -256,7 +269,7 @@ void Game::SetLootSpawnPreiod(double seconds) {
 }
 
 
-double Game::GetLootSpawnPerion() const {
+double Game::GetLootSpawnPeriod() const {
 	return loot_spawn_period_;
 }
 

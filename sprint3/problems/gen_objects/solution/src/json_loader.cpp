@@ -2,20 +2,26 @@
 #include "loot_generator.h"
 #include "model.h"
 
+#include <boost/json.hpp>
 #include <chrono>
 #include <fstream>
 #include <iostream>
+#include <istream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
-
-#include <boost/json.hpp>
 
 namespace json_loader {
 
 using namespace std::literals;
 
 namespace {
+
+json::value ParseFile(std::istream& input) {
+
+	std::string content((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
+	return json::parse(content);
+}
 
 json::value ParseFile(const std::string& filename) {
 	std::ifstream file(filename);
@@ -24,9 +30,10 @@ json::value ParseFile(const std::string& filename) {
 		exit(1);
 	}
 
-	std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+	return ParseFile(file);
+	// std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
 
-	return json::parse(content);
+	// return json::parse(content);
 }
 
 std::string JStrToStr(const json::string str) {
@@ -70,6 +77,34 @@ model::Road JSONToRoad(const json::object& jo) {
 }
 
 
+model::LootType JSONToLootType(const json::object jo) {
+
+	model::LootType type;
+
+	type.name = jo.at("name").as_string();
+	type.file = jo.at("file").as_string();
+	type.type = jo.at("type").as_string();
+
+	auto rotation = jo.if_contains("rotation");
+	if (rotation) {
+		type.rotation = rotation->to_number<double>();
+	}
+
+
+	auto color = jo.if_contains("color");
+	if (rotation) {
+		type.color = color->as_string();
+	}
+
+	auto scale = jo.if_contains("scale");
+	if (rotation) {
+		type.scale = scale->to_number<double>();
+	}
+
+	return type;
+}
+
+
 model::Map JSONToMap(const json::object& jo) {
 
 	model::Map map(model::Map::Id{JStrToStr(jo.at("id").as_string())}, JStrToStr(jo.at("name").as_string()));
@@ -93,6 +128,13 @@ model::Map JSONToMap(const json::object& jo) {
 	if (dog_speed) {
 		model::Dimension speed = dog_speed->to_number<model::Dimension>();
 		map.SetDogDefaultSpeed(speed);
+	}
+
+	const json::value* loot_types = jo.if_contains("lootTypes");
+	if (loot_types && loot_types->is_array()) {
+		for (const auto& type : loot_types->as_array()) {
+			map.AddLootType(JSONToLootType(type.as_object()));
+		}
 	}
 
 	return map;
@@ -148,6 +190,42 @@ void RoadToJSON(const model::Road& road, json::object& jo) {
 	} else {
 		jo["y1"] = road.GetEnd().y;
 	}
+}
+
+void LootTypeToJSON(const model::LootType type, json::object& jo) {
+	jo["name"] = type.name;
+	jo["file"] = type.file;
+	jo["type"] = type.type;
+	jo["rotation"] = type.rotation;
+	jo["color"] = type.color;
+	jo["scale"] = type.scale;
+}
+
+model::Game LoadGame(const json::value& jv) {
+
+	model::Game game;
+	auto& cfg_jo = jv.as_object();
+	const json::value* def_dog_speed = cfg_jo.if_contains("defaultDogSpeed");
+	if (def_dog_speed) {
+		model::Dimension speed = def_dog_speed->to_number<model::Dimension>();
+		game.SetDogDefaultSpeed(speed);
+	}
+
+	for (const auto& json_map : cfg_jo.at("maps").as_array()) {
+		auto new_map = JSONToMap(json_map.as_object());
+		if (!new_map.GetDogDefaultSpeed() && game.GetDogDefaultSpeed()) {
+			new_map.SetDogDefaultSpeed(game.GetDogDefaultSpeed());
+		}
+		game.AddMap(new_map);
+	}
+
+	// Load loot parameters
+	auto loot_jo = cfg_jo.if_contains("lootGeneratorConfig");
+	if (loot_jo && loot_jo->is_object()) {
+		game.SetLootSpawnPreiod(loot_jo->at("period").as_double());
+		game.SetLootSpawnProbability(loot_jo->at("probability").as_double());
+	}
+	return game;
 }
 
 } // namespace
@@ -221,41 +299,59 @@ void MapToJSON(const model::Map& map, json::object& jo) {
 		OfficeToJSON(office, new_joffice);
 		joffices.push_back(std::move(new_joffice));
 	}
+
+	json::array loot_types_ja;
+	for (const auto& type : map.GetLootTypes()) {
+		json::object new_type_jo;
+		LootTypeToJSON(type, new_type_jo);
+		loot_types_ja.push_back(std::move(new_type_jo));
+	}
+	jo.emplace("lootTypes", std::move(loot_types_ja));
+
 }
 
+
+
+
+model::Game LoadGame(std::istream& input) {
+	return LoadGame(ParseFile(input));
+}
 
 model::Game LoadGame(const std::filesystem::path& json_path) {
 	// Загрузить содержимое файла json_path, например, в виде строки
 	// Распарсить строку как JSON, используя boost::json::parse
 	// Загрузить модель игры из файла
-	model::Game game;
+
 
 	const auto cfg_jv = ParseFile(json_path);
-	auto& cfg_jo = cfg_jv.as_object();
+	return LoadGame(cfg_jv);
+	// auto& cfg_jo = cfg_jv.as_object();
 
-	const json::value* def_dog_speed = cfg_jo.if_contains("defaultDogSpeed");
-	if (def_dog_speed) {
-		model::Dimension speed = def_dog_speed->to_number<model::Dimension>();
-		game.SetDogDefaultSpeed(speed);
-	}
+	// const json::value* def_dog_speed = cfg_jo.if_contains("defaultDogSpeed");
+	// if (def_dog_speed) {
+	// 	model::Dimension speed = def_dog_speed->to_number<model::Dimension>();
+	// 	game.SetDogDefaultSpeed(speed);
+	// }
 
-	for (const auto& json_map : cfg_jo.at("maps").as_array()) {
-		auto new_map = JSONToMap(json_map.as_object());
-		if (!new_map.GetDogDefaultSpeed() && game.GetDogDefaultSpeed()) {
-			new_map.SetDogDefaultSpeed(game.GetDogDefaultSpeed());
-		}
-		game.AddMap(new_map);
-	}
+	// for (const auto& json_map : cfg_jo.at("maps").as_array()) {
+	// 	auto new_map = JSONToMap(json_map.as_object());
+	// 	if (!new_map.GetDogDefaultSpeed() && game.GetDogDefaultSpeed()) {
+	// 		new_map.SetDogDefaultSpeed(game.GetDogDefaultSpeed());
+	// 	}
+	// 	game.AddMap(new_map);
+	// }
 
-	// Load loot parameters
-	auto loot_jo = cfg_jo.if_contains("lootGeneratorConfig");
-	if (loot_jo && loot_jo->is_object()) {
-		game.SetLootSpawnPreiod(loot_jo->at("period").as_double());
-		game.SetLootSpawnProbability(loot_jo->at("probability").as_double());
-	}
+	// // Load loot parameters
+	// auto loot_jo = cfg_jo.if_contains("lootGeneratorConfig");
+	// if (loot_jo && loot_jo->is_object()) {
+	// 	game.SetLootSpawnPreiod(loot_jo->at("period").as_double());
+	// 	game.SetLootSpawnProbability(loot_jo->at("probability").as_double());
+	// }
 
-	return game;
+	// return game;
 }
+
+
 
 
 } // namespace json_loader

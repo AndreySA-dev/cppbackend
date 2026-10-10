@@ -9,13 +9,12 @@ namespace helper {
 
 [[nodiscard]] std::string URLDecode(const std::string_view encoded);
 
-
-
-template <typename T, bool is_thread_safe = true>
+enum class IsThreadSafe { YES, NO };
+template <typename T, IsThreadSafe is_thread_safe = IsThreadSafe::NO>
 T GetRandomNum(T min, T max) {
 	static std::random_device rd;
 	static std::mt19937 gen(rd());
-	if constexpr (is_thread_safe) {
+	if constexpr (is_thread_safe == IsThreadSafe::YES) {
 		static std::mutex mut;
 		std::lock_guard<std::mutex> lock(mut);
 	}
