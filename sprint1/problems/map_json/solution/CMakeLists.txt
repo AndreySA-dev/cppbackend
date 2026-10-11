@@ -4,7 +4,7 @@ project(game_server CXX)
 set(CMAKE_CXX_STANDARD 20)
 
 include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
-conan_basic_setup()
+# conan_basic_setup()
 
 find_package(Boost 1.78.0 REQUIRED)
 if(Boost_FOUND)
@@ -14,7 +14,7 @@ endif()
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
-add_executable(game_server
+add_executable(game_server 
 	src/main.cpp
 	src/http_server.cpp
 	src/http_server.h
