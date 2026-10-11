@@ -25,5 +25,5 @@ tomli==2.0.1
 urllib3==1.26.9
 Werkzeug==2.1.2
 zipp==3.8.0
-conan==1.*
+conan==1.66.0
 gprof2dot==2022.7.29
