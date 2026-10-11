@@ -11,7 +11,9 @@
 using namespace std;
 using namespace std::literals;
 
-		string json_cfg{R"(
+namespace json_data {
+
+string json_cfg{R"(
 {
   "defaultDogSpeed": 3.0,
   "lootGeneratorConfig": {
@@ -346,6 +348,8 @@ using namespace std::literals;
 }
 		)"};
 
+}
+
 SCENARIO("Loot generation") {
 	using loot_gen::LootGenerator;
 	using TimeInterval = LootGenerator::TimeInterval;
@@ -414,15 +418,32 @@ SCENARIO("Game config load and check LootType parameters") {
 	GIVEN("JSON text") {
 
 		WHEN("load config") {
-			std::stringstream json_stream(json_cfg);
-			THEN("No exception, and load expected parameters") {
+			std::stringstream json_stream(json_data::json_cfg);
+			THEN("No exception, and load expected values") {
 				model::Game game;
 				REQUIRE_NOTHROW(game = json_loader::LoadGame(json_stream));
+				
 				REQUIRE(game.GetMaps().size() == 2);
 				CHECK(game.GetLootSpawnPeriod() == 5.000);
 				CHECK(game.GetLootSpawnProbability() == 0.5);
-				CHECK((game.FindMap(model::Map::Id{"map1"})->GetLootTypes().size()) == 2 );
-				CHECK((game.FindMap(model::Map::Id{"town"})->GetLootTypes().size()) == 2 );
+
+				CHECK((game.FindMap(model::Map::Id{"map1"})->GetLootTypes().size()) == 2);
+				CHECK((game.FindMap(model::Map::Id{"map1"})->GetLootTypes()[0].file) == "assets/key.obj");
+				CHECK(*game.FindMap(model::Map::Id{"map1"})->GetLootTypes()[0].color == "#338844");
+				CHECK((game.FindMap(model::Map::Id{"map1"})->GetLootTypes()[1].file) == "assets/wallet.obj");
+				CHECK(*game.FindMap(model::Map::Id{"map1"})->GetLootTypes()[1].color == "#883344");
+
+				
+				
+				CHECK((game.FindMap(model::Map::Id{"town"})->GetLootTypes().size()) == 2);
+				CHECK((game.FindMap(model::Map::Id{"town"})->GetLootTypes()[0].file) == "assets/key.obj");
+				// color and rotation not esixt in config
+				CHECK(!game.FindMap(model::Map::Id{"town"})->GetLootTypes()[0].color);
+				CHECK(!game.FindMap(model::Map::Id{"town"})->GetLootTypes()[0].rotation);
+				CHECK((game.FindMap(model::Map::Id{"town"})->GetLootTypes()[1].file) == "assets/wallet.obj");
+				// color and rotation not esixt in config
+				CHECK(!game.FindMap(model::Map::Id{"town"})->GetLootTypes()[1].color);
+				CHECK(!game.FindMap(model::Map::Id{"town"})->GetLootTypes()[1].rotation);
 			}
 		}
 	}
