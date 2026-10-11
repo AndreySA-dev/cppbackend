@@ -34,11 +34,6 @@ std::pair<user::User*, Code> Authenticator::GetUser(token::Token token) {
 		return {nullptr, Code::TOKEN_IS_INCORRECT};
 	}
 
-	// if (auto it = tokens_to_users_id_.find(token); it != tokens_to_users_id_.cend()) {
-	// 	return {users_.GetUser(it->second), Code::OK};
-	// }
-
-	// return {nullptr, Code::PLAYER_NOT_FOUND};
 	auto it = tokens_to_users_id_.find(token);
 	return it != tokens_to_users_id_.cend() ?  pair{users_.GetUser(it->second), Code::OK} : pair{nullptr, Code::PLAYER_NOT_FOUND}; 
 

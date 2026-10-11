@@ -239,8 +239,8 @@ StringResponse RequestHandler::HandleHttpSetGameActionRequest(HTTPRequest req) {
 	}
 
 	auto [user_ptr, auth_code] = Authorize(req);
-	std::cerr << "Action authorize user - " << user_ptr->GetName() << ". dogid - " << *user_ptr->GetUserDog()->GetId()
-			  << endl; // ============= DBG LOG !!!
+	// std::cerr << "Action authorize user - " << user_ptr->GetName() << ". dogid - " << *user_ptr->GetUserDog()->GetId()
+	// 		  << endl; // ============= DBG LOG !!!
 	if (auth_code != auth::Code::OK) {
 		return GetAuthorizeErrorResponse(auth_code);
 	}

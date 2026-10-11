@@ -2,10 +2,14 @@
 #include "helper.h"
 
 #include <algorithm>
+#include <ranges>
 #include <stdexcept>
 #include <unordered_set>
 #include <utility>
 
+#ifdef MYDEBUG
+#include <iostream>
+#endif
 
 namespace model {
 
@@ -51,7 +55,6 @@ void Map::AddOffice(Office office) {
 		offices_.pop_back();
 		throw;
 	}
-
 }
 
 const Map::Offices& Map::GetOffices() const noexcept {
@@ -113,10 +116,40 @@ LootType* Map::GetLootType(LootType::Id id) {
 	return *id < loot_types_.size() ? &loot_types_[*id] : nullptr;
 }
 
+const LootType* Map::GetLootType(LootType::Id id) const {
+	return *id < loot_types_.size() ? &loot_types_[*id] : nullptr;
+}
+
 const Map::LootTypes& Map::GetLootTypes() const {
 	return loot_types_;
 }
 
+size_t Map::GetLootTypeCount() const {
+	return loot_types_.size();
+}
+
+
+void Map::AddLoot(LootType::Id type, Point pos) {
+	size_t id = loots_.size();
+	loots_.push_back({Loot::Id(id), type, pos});
+}
+
+Loot* Map::GetLoot(Loot::Id id) {
+	return *id < loots_.size() ? &loots_[*id] : nullptr;
+}
+
+
+const Loot* Map::GetLoot(Loot::Id id) const {
+	return *id < loots_.size() ? &loots_[*id] : nullptr;
+}
+
+const Map::Loots& Map::GetLoots() const {
+	return loots_;
+}
+
+size_t Map::GetLootCount() const {
+	return loots_.size();
+}
 
 void Map::SetDogDefaultSpeed(std::optional<Speed> speed) noexcept {
 	dog_default_speed_ = speed;
@@ -126,17 +159,44 @@ std::optional<Speed> Map::GetDogDefaultSpeed() const noexcept {
 	return dog_default_speed_;
 }
 
-void Map::Act(std::chrono::steady_clock::duration duration) {
+size_t Map::GetDogCount() const {
+	return dogs_.size();
+}
 
+void Map::Act(std::chrono::steady_clock::duration duration, size_t new_loot_number) {
+
+	// move all dogs
 	for (auto& dog : GetDogs()) {
 		model::Dimension distance = dog.GetSpeed() * std::chrono::duration<double>(duration).count();
 		MoveDog(dog, distance);
 	}
+
+	// add loot
+	if (new_loot_number == 0 || GetLootTypeCount() == 0) {
+		return;
+	}
+	while (new_loot_number != 0) {
+		// random loot type and random position
+		LootType::Id type_id{helper::GetRandomNum<size_t>(0, GetLootTypeCount())};
+		auto pos = GetRandPosOnRoad();
+#ifdef MYDEBUG
+		cerr << "New loot " << pos.x << "x" << pos.y << endl;
+#endif
+		AddLoot(type_id, pos);
+		--new_loot_number;
+	}
+}
+
+Point Map::GetRandPosOnRoad() const {
+	auto& road = GetRoads()[helper::GetRandomNum<int>(0, GetRoads().size())];
+	model::Rectangle rect = road.GetRoadRect();
+	model::Point rand_pos;
+	rand_pos.x = rect.position.x + rect.size.width * helper::GetRandomNum(0.0, 1.0);
+	rand_pos.y = rect.position.y + rect.size.height * helper::GetRandomNum(0.0, 1.0);
+	return rand_pos;
 }
 
 void Map::MoveDog(Dog& dog, Dimension distance) {
-
-	// using namespace helper;
 
 	if (!dog.IsMove()) {
 		return;

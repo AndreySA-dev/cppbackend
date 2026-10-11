@@ -421,7 +421,7 @@ SCENARIO("Game config load and check LootType parameters") {
 				REQUIRE(game.GetMaps().size() == 2);
 				CHECK(game.GetLootSpawnPeriod() == 5.000);
 				CHECK(game.GetLootSpawnProbability() == 0.5);
-				CHECK((game.FindMap(model::Map::Id{"town"})->GetLootTypes().size()) == 2 );
+				CHECK((game.FindMap(model::Map::Id{"map1"})->GetLootTypes().size()) == 2 );
 				CHECK((game.FindMap(model::Map::Id{"town"})->GetLootTypes().size()) == 2 );
 			}
 		}

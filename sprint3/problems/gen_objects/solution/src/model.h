@@ -152,9 +152,16 @@ struct LootType {
 	std::string name;
     std::string file;
     std::string type;
-    double rotation = 0.0;
-	Color color = "#000000";
+    std::optional<double> rotation = std::nullopt;
+	std::optional<Color> color = std::nullopt;
 	double scale = 0.0;
+};
+
+struct Loot {
+	using Id = util::Tagged<size_t, Loot>;
+	Id id;
+	LootType::Id type;
+	Point position;
 };
 
 class Map {
@@ -165,6 +172,7 @@ class Map {
 	using Offices = std::vector<Office>;
 	using Dogs = std::vector<Dog>;
 	using LootTypes = std::vector<LootType>;
+	using Loots = std::vector<Loot>;
 
 	Map(Id id, std::string name) noexcept : id_(std::move(id)), name_(std::move(name)) {}
 
@@ -187,13 +195,24 @@ class Map {
 	Dog* GetDog(Dog::Id id);
 	const Dog* GetDog(Dog::Id id) const;
 	std::optional<Speed> GetDogDefaultSpeed() const noexcept;
+	size_t GetDogCount() const;
 	void SetDogDefaultSpeed(std::optional<Speed> speed) noexcept;
 	
 	void AddLootType(LootType loot_type);
 	LootType* GetLootType(LootType::Id id);
+	const LootType* GetLootType(LootType::Id id) const;
 	const LootTypes& GetLootTypes() const;
+	size_t GetLootTypeCount() const;
 	
-	void Act(std::chrono::steady_clock::duration duration);
+	void AddLoot(LootType::Id type, Point pos);
+	Loot* GetLoot(Loot::Id id);
+	const Loot* GetLoot(Loot::Id id) const;
+	const Loots& GetLoots() const;
+	size_t GetLootCount() const;
+	
+	void Act(std::chrono::steady_clock::duration duration, size_t new_loot_number);
+
+	Point GetRandPosOnRoad() const;
 
   private:
 	using OfficeIdToIndex = std::unordered_map<Office::Id, size_t, util::TaggedHasher<Office::Id>>;
@@ -216,6 +235,8 @@ class Map {
 	std::optional<Speed> dog_default_speed_ = std::nullopt;
 
 	LootTypes loot_types_;
+	Loots loots_;
+	
 
 };
 

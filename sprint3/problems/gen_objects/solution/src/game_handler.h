@@ -60,7 +60,6 @@ class GameHandler : public std::enable_shared_from_this<GameHandler> {
 
 	std::optional<json::value> GetMap(const std::string id) const ;
 
-
 	model::Game& game_;
 	auth::Authenticator authenticator_;
 	net::strand<net::io_context::executor_type>  game_strand_;

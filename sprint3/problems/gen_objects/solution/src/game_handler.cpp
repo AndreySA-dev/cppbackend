@@ -3,8 +3,9 @@
 #include "json_loader.h"
 #include "model.h"
 
-
+#ifdef MYDEBUG
 #include <iostream>
+#endif
 
 namespace game_handler {
 
@@ -12,9 +13,11 @@ using namespace std;
 using namespace literals;
 
 
-GameHandler::GameHandler(model::Game& game, net::io_context& ioc, size_t tick_period_ms, bool random_dog_spawn, loot_gen::LootGenerator loot_generator)
+GameHandler::GameHandler(model::Game& game, net::io_context& ioc, size_t tick_period_ms, bool random_dog_spawn,
+	loot_gen::LootGenerator loot_generator)
 	: game_{game}, authenticator_{game}, game_strand_{net::make_strand(ioc)}, tick_timer_{ioc},
-	  tick_period_{std::chrono::milliseconds(tick_period_ms)}, is_random_dog_spawn_(random_dog_spawn), loot_generator_(std::move(loot_generator)) {}
+	  tick_period_{std::chrono::milliseconds(tick_period_ms)}, is_random_dog_spawn_(random_dog_spawn),
+	  loot_generator_(std::move(loot_generator)) {}
 
 
 std::pair<json::value, game::Code> GameHandler::HandleGetMapsRequest() const {
@@ -26,8 +29,8 @@ std::pair<json::value, game::Code> GameHandler::HandleGetMapsRequest() const {
 std::pair<json::value, game::Code> GameHandler::HandleGetMapRequest(std::string_view map_id) const {
 
 	auto maps = GetMap(std::string(map_id));
-	return (maps) ? pair{std::move(*maps), game::Code::OK} : pair{ResponseTemplates::MAP_NOT_FOUND, game::Code::NOT_FOUND};
-	
+	return (maps) ? pair{std::move(*maps), game::Code::OK}
+				  : pair{ResponseTemplates::MAP_NOT_FOUND, game::Code::NOT_FOUND};
 }
 
 
@@ -45,24 +48,26 @@ pair<json::value, game::Code> GameHandler::HandleGameJoinRequest(std::string_vie
 		}
 
 		auto player_id = player_ptr->GetId();
+		// add dog with same Id as UserId
 		auto& new_dog = map_ptr->AddDog(model::Dog::Id(*player_id));
 
 		model::Point dog_pos = {0, 0};
 
 		if (is_random_dog_spawn_) {
 			// generate Dog random position in random road
-			auto& road = map_ptr->GetRoads()[helper::GetRandomNum<int>(0, map_ptr->GetRoads().size())];
-			auto road_len = road.GetLength();
-			if (road_len > 0) {
-				model::Dimension shift = helper::GetRandomNum<model::Dimension>(0.0, road_len);
-				if (road.IsHorizontal()) {
-					dog_pos.x = std::min(road.GetStart().x, road.GetEnd().x) + shift;
-					dog_pos.y = road.GetStart().y;
-				} else {
-					dog_pos.y = std::min(road.GetStart().y, road.GetEnd().y) + shift;
-					dog_pos.x = road.GetStart().x;
-				}
-			}
+			dog_pos = map_ptr->GetRandPosOnRoad();
+			// auto& road = map_ptr->GetRoads()[helper::GetRandomNum<int>(0, map_ptr->GetRoads().size())];
+			// auto road_len = road.GetLength();
+			// if (road_len > 0) {
+			// 	model::Dimension shift = helper::GetRandomNum<model::Dimension>(0.0, road_len);
+			// 	if (road.IsHorizontal()) {
+			// 		dog_pos.x = std::min(road.GetStart().x, road.GetEnd().x) + shift;
+			// 		dog_pos.y = road.GetStart().y;
+			// 	} else {
+			// 		dog_pos.y = std::min(road.GetStart().y, road.GetEnd().y) + shift;
+			// 		dog_pos.x = road.GetStart().x;
+			// 	}
+			// }
 		} else {
 			dog_pos = map_ptr->GetRoads()[0].GetStart();
 		}
@@ -97,6 +102,7 @@ std::pair<json::value, game::Code> GameHandler::HandleGetStateRequest(user::User
 	json::object jo;
 	auto map_ptr = user_ptr->GetMap();
 	json_loader::MapToDogsJSON(*map_ptr, jo);
+	json_loader::MapToLootJSON(*map_ptr, jo);
 
 	return {jo, game::Code::OK};
 }
@@ -137,7 +143,7 @@ std::pair<json::value, game::Code> GameHandler::HandleTickRequest(size_t millise
 	if (milliseconds > 0) {
 		UpdateState(std::chrono::milliseconds(milliseconds));
 	}
-	
+
 	return {{}, game::Code::OK};
 }
 
@@ -182,7 +188,9 @@ void GameHandler::ScheduleTick() {
 void GameHandler::UpdateState(std::chrono::steady_clock::duration duration) {
 	// handle all maps
 	for (auto& map : game_.GetMaps()) {
-		map.Act(duration);
+		auto new_loot_count = loot_generator_.Generate(
+			std::chrono::duration_cast<std::chrono::milliseconds>(duration), map.GetLootCount(), map.GetDogCount());
+		map.Act(duration, new_loot_count);
 	}
 }
 

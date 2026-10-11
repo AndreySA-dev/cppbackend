@@ -46,9 +46,8 @@ add_executable(game_server
 target_include_directories(game_server PRIVATE CONAN_PKG::boost)
 target_link_libraries(game_server PRIVATE CONAN_PKG::boost Threads::Threads)
 
-# add_executable(catch_tests
-# 	tests/catch_test.cpp
-# 	src/func.h
-# 	src/func.cpp
-# )
-# target_link_libraries(catch_tests PRIVATE CONAN_PKG::catch2)
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    target_compile_definitions(game_server PRIVATE MYDEBUG)
+endif()
+
+add_subdirectory("tests/")

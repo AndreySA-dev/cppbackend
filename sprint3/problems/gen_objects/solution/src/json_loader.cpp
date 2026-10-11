@@ -31,9 +31,6 @@ json::value ParseFile(const std::string& filename) {
 	}
 
 	return ParseFile(file);
-	// std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-
-	// return json::parse(content);
 }
 
 std::string JStrToStr(const json::string str) {
@@ -90,16 +87,12 @@ model::LootType JSONToLootType(const json::object jo) {
 		type.rotation = rotation->to_number<double>();
 	}
 
-
 	auto color = jo.if_contains("color");
-	if (rotation) {
+	if (color) {
 		type.color = color->as_string();
 	}
 
-	auto scale = jo.if_contains("scale");
-	if (rotation) {
-		type.scale = scale->to_number<double>();
-	}
+	type.scale = jo.at("scale").to_number<double>();
 
 	return type;
 }
@@ -140,11 +133,6 @@ model::Map JSONToMap(const json::object& jo) {
 	return map;
 }
 
-// loot_gen::LootGenerator JSONToLootGenerator(const json::object& jo) {
-// 	double period = jo.at("period").as_double();
-// 	double probability = jo.at("probability").as_double();
-// 	return loot_gen::LootGenerator{std::chrono::milliseconds(static_cast<int>(period * 1000)), probability};
-// }
 
 void PointToJSON(model::Point point, json::object& jo) {
 	jo["x"] = point.x;
@@ -192,13 +180,46 @@ void RoadToJSON(const model::Road& road, json::object& jo) {
 	}
 }
 
+void DogToJSON(const model::Dog& dog, json::object& jo) {
+
+	jo["pos"] = json::array({json::value(dog.GetPosition().x), json::value(dog.GetPosition().y)});
+
+	model::Dimension v_speed = 0;
+	model::Dimension h_speed = 0;
+	if (dog.IsMove()) {
+
+		if (dog.GetDirection() == model::Direction::NORTH) {
+			v_speed = dog.GetSpeed() * -1;
+		} else if (dog.GetDirection() == model::Direction::EAST) {
+			h_speed = dog.GetSpeed();
+		} else if (dog.GetDirection() == model::Direction::SOUTH) {
+			v_speed = dog.GetSpeed();
+		} else if (dog.GetDirection() == model::Direction::WEST) {
+			h_speed = dog.GetSpeed() * -1;
+		}
+	}
+	jo["speed"] = json::array({h_speed, v_speed});
+
+	jo["dir"] = std::string(1, DirectionToChar(dog.GetDirection()));
+}
+
+
 void LootTypeToJSON(const model::LootType type, json::object& jo) {
 	jo["name"] = type.name;
 	jo["file"] = type.file;
 	jo["type"] = type.type;
-	jo["rotation"] = type.rotation;
-	jo["color"] = type.color;
+	if (type.rotation) {
+		jo["rotation"] = *type.rotation;
+	}
+	if (type.color) {
+		jo["color"] = *type.color;
+	}
 	jo["scale"] = type.scale;
+}
+
+void LootToJSON(const model::Loot loot, json::object& jo) {
+	jo["type"] = *loot.type;
+	jo["pos"] = json::array({loot.position.x, loot.position.y});
 }
 
 model::Game LoadGame(const json::value& jv) {
@@ -230,32 +251,6 @@ model::Game LoadGame(const json::value& jv) {
 
 } // namespace
 
-
-void DogToJSON(const model::Dog& dog, json::object& jo) {
-
-	// jo["id"] = *dog.GetId();
-	jo["pos"] = json::array({json::value(dog.GetPosition().x), json::value(dog.GetPosition().y)});
-
-	model::Dimension v_speed = 0;
-	model::Dimension h_speed = 0;
-	if (dog.IsMove()) {
-
-		if (dog.GetDirection() == model::Direction::NORTH) {
-			v_speed = dog.GetSpeed() * -1;
-		} else if (dog.GetDirection() == model::Direction::EAST) {
-			h_speed = dog.GetSpeed();
-		} else if (dog.GetDirection() == model::Direction::SOUTH) {
-			v_speed = dog.GetSpeed();
-		} else if (dog.GetDirection() == model::Direction::WEST) {
-			h_speed = dog.GetSpeed() * -1;
-		}
-	}
-	jo["speed"] = json::array({h_speed, v_speed});
-
-	jo["dir"] = std::string(1, DirectionToChar(dog.GetDirection()));
-}
-
-
 void MapToDogsJSON(const model::Map& map, json::object& jo) {
 
 	json::object dogs_jo;
@@ -265,6 +260,17 @@ void MapToDogsJSON(const model::Map& map, json::object& jo) {
 		dogs_jo.emplace(std::to_string(*dog.GetId()), std::move(dog_jo));
 	}
 	jo["players"] = std::move(dogs_jo);
+}
+
+void MapToLootJSON(const model::Map& map, json::object& jo) {
+
+	json::object loots_jo;
+	for (const auto& loot : map.GetLoots()) {
+		json::object loot_jo;
+		LootToJSON(loot, loot_jo);
+		loots_jo.emplace(std::to_string(*loot.id), std::move(loot_jo));
+	}
+	jo["lostObjects"] = std::move(loots_jo);
 }
 
 
@@ -307,10 +313,7 @@ void MapToJSON(const model::Map& map, json::object& jo) {
 		loot_types_ja.push_back(std::move(new_type_jo));
 	}
 	jo.emplace("lootTypes", std::move(loot_types_ja));
-
 }
-
-
 
 
 model::Game LoadGame(std::istream& input) {
@@ -322,36 +325,9 @@ model::Game LoadGame(const std::filesystem::path& json_path) {
 	// Распарсить строку как JSON, используя boost::json::parse
 	// Загрузить модель игры из файла
 
-
 	const auto cfg_jv = ParseFile(json_path);
 	return LoadGame(cfg_jv);
-	// auto& cfg_jo = cfg_jv.as_object();
-
-	// const json::value* def_dog_speed = cfg_jo.if_contains("defaultDogSpeed");
-	// if (def_dog_speed) {
-	// 	model::Dimension speed = def_dog_speed->to_number<model::Dimension>();
-	// 	game.SetDogDefaultSpeed(speed);
-	// }
-
-	// for (const auto& json_map : cfg_jo.at("maps").as_array()) {
-	// 	auto new_map = JSONToMap(json_map.as_object());
-	// 	if (!new_map.GetDogDefaultSpeed() && game.GetDogDefaultSpeed()) {
-	// 		new_map.SetDogDefaultSpeed(game.GetDogDefaultSpeed());
-	// 	}
-	// 	game.AddMap(new_map);
-	// }
-
-	// // Load loot parameters
-	// auto loot_jo = cfg_jo.if_contains("lootGeneratorConfig");
-	// if (loot_jo && loot_jo->is_object()) {
-	// 	game.SetLootSpawnPreiod(loot_jo->at("period").as_double());
-	// 	game.SetLootSpawnProbability(loot_jo->at("probability").as_double());
-	// }
-
-	// return game;
 }
-
-
 
 
 } // namespace json_loader

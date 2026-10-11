@@ -11,9 +11,8 @@ namespace json_loader {
 
 namespace json = boost::json;
 
-void DogToJSON(const model::Dog& dog, json::object& jo);
-
 void MapToDogsJSON(const model::Map& map, json::object& jo);
+void MapToLootJSON(const model::Map& map, json::object& jo);
 
 void MapInfoToJSON(const model::Map& map, json::object& jo);
 
