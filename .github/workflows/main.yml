@@ -161,6 +161,7 @@ jobs:
           pip install -U conan==1.66.0
           pip install -r requirements.txt
           pip show pytest
+          cp -R /home/forconan/.conan /github/home/.conan
 
       - name: run tests sprint3 instrumentation
         run: |
