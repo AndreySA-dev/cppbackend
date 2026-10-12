@@ -68,7 +68,7 @@ if __name__ == "__main__" :
 	print(f"Profiler and shooter stopped...")
 	
 	print(f"Perf script start...")
-	perf_script = subprocess.Popen(shlex.split(f"perf script"), stdout=subprocess.PIPE)
+	perf_script = subprocess.Popen(shlex.split(f"perf script -i {perf_data_filename}"), stdout=subprocess.PIPE)
 
 	print(f"stackcollapse start...")
 	collapser = subprocess.Popen(shlex.split(f"perl ./FlameGraph/stackcollapse-perf.pl"), stdout=subprocess.PIPE, stdin=perf_script.stdout)
