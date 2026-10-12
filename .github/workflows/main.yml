@@ -181,11 +181,11 @@ jobs:
           repository: 'brendangregg/FlameGraph'
           path: ${{ github.workspace }}/sprint3/problems/flamegraph/solution/FlameGraph
 
-      # - name: run tests sprint3 flamegraph
-      #   run: |
-      #     ./cpp-backend-tests-practicum/scripts/sprint1/map_json/build.sh
-      #     cd cpp-backend-tests-practicum/scripts/sprint3
-      #     ./flamegraph/run.sh
+      - name: run tests sprint3 flamegraph
+        run: |
+          ./cpp-backend-tests-practicum/scripts/sprint1/map_json/build.sh
+          cd cpp-backend-tests-practicum/scripts/sprint3
+          ./flamegraph/run.sh
 
       - name: run tests sprint3 gen_objects
         run: |
