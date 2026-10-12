@@ -1,0 +1,333 @@
+#include "json_loader.h"
+#include "loot_generator.h"
+#include "model.h"
+
+#include <boost/json.hpp>
+#include <chrono>
+#include <fstream>
+#include <iostream>
+#include <istream>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+
+namespace json_loader {
+
+using namespace std::literals;
+
+namespace {
+
+json::value ParseFile(std::istream& input) {
+
+	std::string content((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
+	return json::parse(content);
+}
+
+json::value ParseFile(const std::string& filename) {
+	std::ifstream file(filename);
+	if (!file.is_open()) {
+		throw std::runtime_error("Cannot open file: " + filename);
+		exit(1);
+	}
+
+	return ParseFile(file);
+}
+
+std::string JStrToStr(const json::string str) {
+	return std::string(str.data(), str.size());
+}
+
+model::Point JSONToPoint(const json::value& jv) {
+	return {jv.at("x").to_number<model::Dimension>(), jv.at("y").to_number<model::Dimension>()};
+}
+
+model::Size JSONToSize(const json::value& jv) {
+	return {jv.at("w").to_number<model::Dimension>(), jv.at("h").to_number<model::Dimension>()};
+}
+
+model::Rectangle JSONToRectangle(const json::value& jv) {
+	return {{JSONToPoint(jv)}, {JSONToSize(jv)}};
+}
+
+model::Building JSONToBuilding(const json::value& jv) {
+	return model::Building(JSONToRectangle(jv));
+}
+
+model::Offset JSONToOffset(const json::value& jv) {
+	return {jv.at("offsetX").to_number<model::Dimension>(), jv.at("offsetY").to_number<model::Dimension>()};
+}
+
+model::Office JSONToOffice(const json::value& jv) {
+	const auto& jstr_id = jv.at("id").as_string();
+	return {{model::Office::Id{{jstr_id.data(), jstr_id.size()}}}, {JSONToPoint(jv)}, {JSONToOffset(jv)}};
+}
+
+model::Road JSONToRoad(const json::object& jo) {
+	model::Point p1{jo.at("x0").to_number<model::Dimension>(), jo.at("y0").to_number<model::Dimension>()};
+
+	if (const auto& x1 = jo.if_contains("x1")) {
+		return model::Road(model::Road::HORIZONTAL, p1, x1->to_number<model::Dimension>());
+	} else if (const auto& y1 = jo.if_contains("y1")) {
+		return model::Road(model::Road::VERTICAL, p1, y1->to_number<model::Dimension>());
+	}
+	throw std::logic_error("JSON. Incorrect road second point parameter");
+}
+
+
+model::LootType JSONToLootType(const json::object jo) {
+
+	model::LootType type;
+
+	type.name = jo.at("name").as_string();
+	type.file = jo.at("file").as_string();
+	type.type = jo.at("type").as_string();
+
+	auto rotation = jo.if_contains("rotation");
+	if (rotation) {
+		type.rotation = rotation->to_number<double>();
+	}
+
+	auto color = jo.if_contains("color");
+	if (color) {
+		type.color = color->as_string();
+	}
+
+	type.scale = jo.at("scale").to_number<double>();
+
+	return type;
+}
+
+
+model::Map JSONToMap(const json::object& jo) {
+
+	model::Map map(model::Map::Id{JStrToStr(jo.at("id").as_string())}, JStrToStr(jo.at("name").as_string()));
+
+	const json::array& roads_ja = jo.at("roads").as_array();
+	for (const auto& road_jo : roads_ja) {
+		map.AddRoad(JSONToRoad(road_jo.as_object()));
+	}
+
+	const json::array& buildings = jo.at("buildings").as_array();
+	for (const auto& build : buildings) {
+		map.AddBuilding(JSONToBuilding(build.as_object()));
+	}
+
+	const json::array& offices = jo.at("offices").as_array();
+	for (const auto& office : offices) {
+		map.AddOffice(JSONToOffice(office.as_object()));
+	}
+
+	const json::value* dog_speed = jo.if_contains("dogSpeed");
+	if (dog_speed) {
+		model::Dimension speed = dog_speed->to_number<model::Dimension>();
+		map.SetDogDefaultSpeed(speed);
+	}
+
+	const json::value* loot_types = jo.if_contains("lootTypes");
+	if (loot_types && loot_types->is_array()) {
+		for (const auto& type : loot_types->as_array()) {
+			map.AddLootType(JSONToLootType(type.as_object()));
+		}
+	}
+
+	return map;
+}
+
+
+void PointToJSON(model::Point point, json::object& jo) {
+	jo["x"] = point.x;
+	jo["y"] = point.y;
+}
+
+
+void SizeToJSON(model::Size size, json::object& jo) {
+	jo["w"] = size.width;
+	jo["h"] = size.height;
+}
+
+
+void RectangleToJSON(model::Rectangle rect, json::object& jo) {
+	PointToJSON(rect.position, jo);
+	SizeToJSON(rect.size, jo);
+}
+
+
+void BuildingToJSON(model::Building building, json::object& jo) {
+	RectangleToJSON(building.GetBounds(), jo);
+}
+
+
+void OffsetToJSON(model::Offset offset, json::object& jo) {
+	jo["offsetX"] = offset.dx;
+	jo["offsetY"] = offset.dy;
+}
+
+
+void OfficeToJSON(const model::Office& office, json::object& jo) {
+	jo["id"] = *office.GetId();
+	PointToJSON(office.GetPosition(), jo);
+	OffsetToJSON(office.GetOffset(), jo);
+}
+
+
+void RoadToJSON(const model::Road& road, json::object& jo) {
+	jo["x0"] = road.GetStart().x;
+	jo["y0"] = road.GetStart().y;
+	if (road.IsHorizontal()) {
+		jo["x1"] = road.GetEnd().x;
+	} else {
+		jo["y1"] = road.GetEnd().y;
+	}
+}
+
+void DogToJSON(const model::Dog& dog, json::object& jo) {
+
+	jo["pos"] = json::array({json::value(dog.GetPosition().x), json::value(dog.GetPosition().y)});
+
+	model::Dimension v_speed = 0;
+	model::Dimension h_speed = 0;
+	if (dog.IsMove()) {
+
+		if (dog.GetDirection() == model::Direction::NORTH) {
+			v_speed = dog.GetSpeed() * -1;
+		} else if (dog.GetDirection() == model::Direction::EAST) {
+			h_speed = dog.GetSpeed();
+		} else if (dog.GetDirection() == model::Direction::SOUTH) {
+			v_speed = dog.GetSpeed();
+		} else if (dog.GetDirection() == model::Direction::WEST) {
+			h_speed = dog.GetSpeed() * -1;
+		}
+	}
+	jo["speed"] = json::array({h_speed, v_speed});
+
+	jo["dir"] = std::string(1, DirectionToChar(dog.GetDirection()));
+}
+
+
+void LootTypeToJSON(const model::LootType type, json::object& jo) {
+	jo["name"] = type.name;
+	jo["file"] = type.file;
+	jo["type"] = type.type;
+	if (type.rotation) {
+		jo["rotation"] = *type.rotation;
+	}
+	if (type.color) {
+		jo["color"] = *type.color;
+	}
+	jo["scale"] = type.scale;
+}
+
+void LootToJSON(const model::Loot loot, json::object& jo) {
+	jo["type"] = *loot.type;
+	jo["pos"] = json::array({loot.position.x, loot.position.y});
+}
+
+model::Game LoadGame(const json::value& jv) {
+
+	model::Game game;
+	auto& cfg_jo = jv.as_object();
+	const json::value* def_dog_speed = cfg_jo.if_contains("defaultDogSpeed");
+	if (def_dog_speed) {
+		model::Dimension speed = def_dog_speed->to_number<model::Dimension>();
+		game.SetDogDefaultSpeed(speed);
+	}
+
+	for (const auto& json_map : cfg_jo.at("maps").as_array()) {
+		auto new_map = JSONToMap(json_map.as_object());
+		if (!new_map.GetDogDefaultSpeed() && game.GetDogDefaultSpeed()) {
+			new_map.SetDogDefaultSpeed(game.GetDogDefaultSpeed());
+		}
+		game.AddMap(new_map);
+	}
+
+	// Load loot parameters
+	auto loot_jo = cfg_jo.if_contains("lootGeneratorConfig");
+	if (loot_jo && loot_jo->is_object()) {
+		game.SetLootSpawnPreiod(loot_jo->at("period").as_double());
+		game.SetLootSpawnProbability(loot_jo->at("probability").as_double());
+	}
+	return game;
+}
+
+} // namespace
+
+void MapToDogsJSON(const model::Map& map, json::object& jo) {
+
+	json::object dogs_jo;
+	for (const auto& dog : map.GetDogs()) {
+		json::object dog_jo;
+		DogToJSON(dog, dog_jo);
+		dogs_jo.emplace(std::to_string(*dog.GetId()), std::move(dog_jo));
+	}
+	jo["players"] = std::move(dogs_jo);
+}
+
+void MapToLootJSON(const model::Map& map, json::object& jo) {
+
+	json::object loots_jo;
+	for (const auto& loot : map.GetLoots()) {
+		json::object loot_jo;
+		LootToJSON(loot, loot_jo);
+		loots_jo.emplace(std::to_string(*loot.id), std::move(loot_jo));
+	}
+	jo["lostObjects"] = std::move(loots_jo);
+}
+
+
+void MapInfoToJSON(const model::Map& map, json::object& jo) {
+	jo["id"] = *map.GetId();
+	jo["name"] = map.GetName();
+}
+
+
+void MapToJSON(const model::Map& map, json::object& jo) {
+
+	MapInfoToJSON(map, jo);
+
+
+	auto& jroads = jo.emplace("roads", json::array{}).first->value().as_array();
+	for (const auto& road : map.GetRoads()) {
+		json::object new_jroad;
+		RoadToJSON(road, new_jroad);
+		jroads.push_back(std::move(new_jroad));
+	}
+
+	auto& jbuildings = jo.emplace("buildings", json::array{}).first->value().as_array();
+	for (const auto& building : map.GetBuildings()) {
+		json::object new_jbuilding;
+		BuildingToJSON(building, new_jbuilding);
+		jbuildings.push_back(std::move(new_jbuilding));
+	}
+
+	auto& joffices = jo.emplace("offices", json::array{}).first->value().as_array();
+	for (const auto& office : map.GetOffices()) {
+		json::object new_joffice;
+		OfficeToJSON(office, new_joffice);
+		joffices.push_back(std::move(new_joffice));
+	}
+
+	json::array loot_types_ja;
+	for (const auto& type : map.GetLootTypes()) {
+		json::object new_type_jo;
+		LootTypeToJSON(type, new_type_jo);
+		loot_types_ja.push_back(std::move(new_type_jo));
+	}
+	jo.emplace("lootTypes", std::move(loot_types_ja));
+}
+
+
+model::Game LoadGame(std::istream& input) {
+	return LoadGame(ParseFile(input));
+}
+
+model::Game LoadGame(const std::filesystem::path& json_path) {
+	// Загрузить содержимое файла json_path, например, в виде строки
+	// Распарсить строку как JSON, используя boost::json::parse
+	// Загрузить модель игры из файла
+
+	const auto cfg_jv = ParseFile(json_path);
+	return LoadGame(cfg_jv);
+}
+
+
+} // namespace json_loader
