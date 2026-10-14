@@ -1,12 +1,19 @@
 # Не просто создаём образ, но даём ему имя build
-FROM gcc:11.3 as build
+FROM gcc:12.5 as build
 
 RUN apt update && \
     apt install -y \
       python3-pip \
       cmake \
-    && \
-    pip3 install conan==1.53.0
+      python3-venv
+
+# Создать виртуальную среду для Python
+RUN python3 -m venv /opt/venv
+
+# Принудительно указать использование виртуальной среды в переменной среды PATH
+ENV PATH="/opt/venv/bin:$PATH"
+
+RUN pip install --no-cache-dir conan==1.*
 
 COPY conanfile.txt /app/
 RUN mkdir /app/build && cd /app/build && \
