@@ -22,6 +22,9 @@ add_library(game_model_lib STATIC
 	src/loot_generator.h
 	src/loot_generator.cpp
 	src/codes.h
+	src/geom.h
+	src/collision_detector.h
+	src/collision_detector.cpp
 )
 target_include_directories(game_model_lib PUBLIC CONAN_PKG::boost)
 target_link_libraries(game_model_lib PUBLIC CONAN_PKG::boost Threads::Threads)
