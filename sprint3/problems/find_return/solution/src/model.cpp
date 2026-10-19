@@ -2,11 +2,12 @@
 #include "helper.h"
 
 #include <algorithm>
+#include <cassert>
 #include <ranges>
+#include <set>
 #include <stdexcept>
 #include <unordered_set>
 #include <utility>
-
 #ifdef MYDEBUG
 #include <iostream>
 #endif
@@ -15,6 +16,13 @@ namespace model {
 
 using namespace std;
 using namespace std::literals;
+
+
+bool Rectangle::IsPointInBound(Point p) const {
+	using namespace helper;
+	return LessOrEqual(position.x, p.x) && LessOrEqual(p.x, position.x + size.width) && LessOrEqual(position.y, p.y) &&
+		   LessOrEqual(p.y, position.y + size.height);
+}
 
 
 const std::string& Map::GetName() const noexcept {
@@ -61,15 +69,15 @@ const Map::Offices& Map::GetOffices() const noexcept {
 	return offices_;
 }
 
-Dog& Map::AddDog(Dog dog) {
+Dog& Map::AddDog(Dog::Id id) {
 
-	if (dog_id_to_idx_.contains(dog.GetId())) {
+	if (dog_id_to_idx_.contains(id)) {
 		throw std::invalid_argument("Duplicate dog");
 	}
 
 	const size_t idx = dogs_.size();
 
-	Dog& new_dog = dogs_.emplace_back(std::move(dog));
+	Dog& new_dog = dogs_.emplace_back(id, *dog_bag_capa_);
 
 	try {
 		dog_id_to_idx_.emplace(new_dog.GetId(), idx);
@@ -109,6 +117,7 @@ Map::Dogs& Map::GetDogs() noexcept {
 
 
 void Map::AddLootType(LootType loot_type) {
+	loot_type.id = LootType::Id(loot_types_.size());
 	loot_types_.push_back(std::move(loot_type));
 }
 
@@ -129,18 +138,15 @@ size_t Map::GetLootTypeCount() const {
 }
 
 
-void Map::AddLoot(LootType::Id type, Point pos) {
-	size_t id = loots_.size();
-	loots_.push_back({Loot::Id(id), type, pos});
+void Map::AddLoot(LootType::Id type_id, Point pos) {
+	auto loot_type_ptr = GetLootType(type_id);
+	AddLoot(loot_type_ptr, pos);
 }
 
-Loot* Map::GetLoot(Loot::Id id) {
-	return *id < loots_.size() ? &loots_[*id] : nullptr;
-}
-
-
-const Loot* Map::GetLoot(Loot::Id id) const {
-	return *id < loots_.size() ? &loots_[*id] : nullptr;
+void Map::AddLoot(const LootType* loot_type, Point pos) {
+	size_t loot_id = GetNextId();
+	// loots_[Loot::Id{loot_id}] = {loot_type, pos};
+	loots_.emplace_back(Loot::Id(loot_id), loot_type, pos);
 }
 
 const Map::Loots& Map::GetLoots() const {
@@ -155,6 +161,14 @@ void Map::SetDogDefaultSpeed(std::optional<Speed> speed) noexcept {
 	dog_default_speed_ = speed;
 }
 
+std::optional<size_t> Map::GetBagCapacity() const {
+	return dog_bag_capa_;
+}
+
+void Map::SetBagCapacity(size_t capacity) {
+	dog_bag_capa_ = capacity;
+}
+
 std::optional<Speed> Map::GetDogDefaultSpeed() const noexcept {
 	return dog_default_speed_;
 }
@@ -165,20 +179,56 @@ size_t Map::GetDogCount() const {
 
 void Map::Act(std::chrono::steady_clock::duration duration, size_t new_loot_number) {
 
+	ItemGatherer gatherer(offices_, loots_);
+
 	// move all dogs
 	for (auto& dog : GetDogs()) {
 		model::Dimension distance = dog.GetSpeed() * std::chrono::duration<double>(duration).count();
-		MoveDog(dog, distance);
+		auto start_pos = dog.GetPosition();
+		auto new_pos = MoveDog(dog, distance);
+#ifdef MYDEBUG
+		std::cerr << "Dog move " << start_pos.x << "," << start_pos.y << " " << new_pos.x << "," << new_pos.y
+				  << std::endl;
+#endif
+		gatherer.AddGatherer(&dog, {start_pos.x, start_pos.y}, {new_pos.x, new_pos.y} /*, dog.GetWidth()*/);
 	}
 
-	// add loot
+	auto events = collision_detector::FindGatherEvents(gatherer);
+
+	// loot idx that has been already captured form road
+	set<size_t, std::greater<size_t>> captured_item_indexes;
+	for (auto event : events) {
+
+		if (gatherer.IsIdxIsOfficeIdx(event.item_id)) {
+			// collision with office, return loot
+			auto dog = gatherer.GetDog(event.gatherer_id);
+			dog->GetScoreAndFreeBag();
+
+		} else if (!captured_item_indexes.contains(event.item_id)) {
+			// if collision not with office, so its loot
+			auto dog = gatherer.GetDog(event.gatherer_id);
+			if (dog->HasBagFreeSpace()) {
+				auto loot = gatherer.GetLootByItemIdx(event.item_id);
+				dog->AddLoot(loot);
+				captured_item_indexes.insert(event.item_id);
+			}
+		}
+	}
+
+	// remove loot from map
+	for (auto captured_loot_idx : captured_item_indexes) {
+		loots_.erase(loots_.begin() + captured_loot_idx);
+	}
+
 	if (new_loot_number == 0 || GetLootTypeCount() == 0) {
 		return;
 	}
+
 	while (new_loot_number != 0) {
 		// random loot type and random position
 		LootType::Id type_id{helper::GetRandomNum<size_t>(0, GetLootTypeCount())};
 		auto pos = GetRandPosOnRoad();
+		// Point pos{10, 0};
 #ifdef MYDEBUG
 		cerr << "New loot " << pos.x << "x" << pos.y << endl;
 #endif
@@ -196,10 +246,12 @@ Point Map::GetRandPosOnRoad() const {
 	return rand_pos;
 }
 
-void Map::MoveDog(Dog& dog, Dimension distance) {
+Point Map::MoveDog(Dog& dog, Dimension distance) {
+
+	Point start_pos = dog.GetPosition();
 
 	if (!dog.IsMove()) {
-		return;
+		return start_pos;
 	}
 
 	Point curr_pos = dog.GetPosition();
@@ -251,7 +303,7 @@ void Map::MoveDog(Dog& dog, Dimension distance) {
 
 			dog_to_road_idx_[&dog] = curr_road;
 			dog.SetPosition(expected_pos);
-			return;
+			return dog.GetPosition();
 		}
 
 		// Dog bumped into the road edge
@@ -275,6 +327,160 @@ void Map::MoveDog(Dog& dog, Dimension distance) {
 
 	dog.SetPosition(curr_pos);
 	dog_to_road_idx_[&dog] = prev_road;
+	return dog.GetPosition();
+}
+
+size_t Map::GetNextId() {
+	return next_id_++;
+}
+
+
+Dog::Dog(Id id, size_t bag_capacity) : id_(id), bag_capa_(bag_capacity) {}
+
+Dog::Id Dog::GetId() const {
+	return id_;
+}
+
+Point Dog::GetPosition() const {
+	return position_;
+}
+
+Speed Dog::GetSpeed() const {
+	return speed_;
+}
+
+void Dog::SetSpeed(Speed speed) {
+	speed_ = speed;
+}
+
+
+Direction Dog::GetDirection() const {
+	return direction_;
+}
+
+void Dog::SetDirection(model::Direction direction) {
+	direction_ = direction;
+}
+
+void Dog::SetPosition(const Point pos) {
+	position_ = pos;
+}
+
+void Dog::Start() {
+	on_move_ = true;
+}
+
+void Dog::Stop() {
+	on_move_ = false;
+}
+
+bool Dog::IsMove() const {
+	return on_move_;
+}
+
+bool Dog::HasBagFreeSpace() const {
+	return bag_.size() < bag_capa_;
+}
+
+size_t Dog::LootCount() const {
+	return bag_.size();
+}
+
+void Dog::AddLoot(Loot loot) {
+	return bag_.push_back(loot);
+}
+
+const std::vector<Loot> Dog::GetBag() const {
+	return bag_;
+}
+
+void Dog::GetScoreAndFreeBag() {
+	size_t add_score = std::accumulate(
+		bag_.cbegin(), bag_.cend(), 0, [](size_t init, const Loot& loot) { return init + loot.loot_type->value; });
+	score_ += add_score;
+	bag_.clear();
+}
+
+Dimension Dog::GetWidth() const {
+	return width_;
+}
+
+void Dog::SetBagCapacity(size_t capacity) {
+	bag_capa_ = capacity;
+}
+
+size_t Dog::GetBagCapacity() const {
+	return size_t();
+}
+
+size_t Dog::GetScore() const {
+	return score_;
+}
+
+char DirectionToChar(model::Direction dir) {
+	return model::DirectionTitles[static_cast<unsigned char>(dir)];
+}
+
+Dimension Road::GetLength() const noexcept {
+	return IsHorizontal() ? std::abs(end_.x - start_.x) : std::abs(end_.y - start_.y);
+}
+
+Rectangle Road::GetRoadRect() const {
+
+	const auto [left, right] = std::minmax(start_.x, end_.x);
+	const auto [top, bottom] = std::minmax(start_.y, end_.y);
+	return {{left - SIZE, top - SIZE}, {right - left + SIZE * 2, bottom - top + SIZE * 2}};
+}
+
+bool Road::IsHorizontal() const noexcept {
+	return start_.y == end_.y;
+}
+
+bool Road::IsVertical() const noexcept {
+	return start_.x == end_.x;
+}
+
+ItemGatherer::ItemGatherer(const Map::Offices& offices, const Map::Loots& loots) : offices_(offices), loots_(loots) {}
+
+void ItemGatherer::AddGatherer(Dog* dog, geom::Point2D from, geom::Point2D to) {
+	size_t idx = gatherers_.size();
+	gatherers_.emplace_back(from, to, dog->GetWidth());
+	gatherer_id_to_dog_.insert({idx, dog});
+}
+
+size_t ItemGatherer::ItemsCount() const {
+	return offices_.size() + loots_.size();
+}
+
+collision_detector::Item ItemGatherer::GetItem(size_t idx) const {
+	if (idx < offices_.size()) {
+		auto& office = offices_[idx];
+		return {{office.GetPosition().x, office.GetPosition().y}, office.GetWidth()};
+	}
+	auto& loot = loots_[idx - offices_.size()];
+	return {{loot.position.x, loot.position.y}, loot.width};
+}
+
+size_t ItemGatherer::GatherersCount() const {
+	return gatherers_.size();
+}
+
+cld::Gatherer ItemGatherer::GetGatherer(size_t idx) const {
+	return gatherers_[idx];
+}
+
+bool ItemGatherer::IsIdxIsOfficeIdx(size_t idx) const {
+	return idx < offices_.size();
+}
+
+Dog* ItemGatherer::GetDog(size_t idx) {
+	auto it = gatherer_id_to_dog_.find(idx);
+	return it != gatherer_id_to_dog_.end() ? it->second : nullptr;
+}
+
+const Loot& ItemGatherer::GetLootByItemIdx(size_t idx) const {
+	assert(idx >= offices_.size());
+	return loots_[idx - offices_.size()];
 }
 
 
@@ -323,6 +529,13 @@ std::optional<Speed> Game::GetDogDefaultSpeed() const noexcept {
 	return dog_default_speed_;
 }
 
+std::optional<size_t> Game::GetBagDefaultCapacity() noexcept {
+	return bag_default_capa_;
+}
+
+void Game::SetBagDefaultCapacity(std::optional<size_t> capacity) {
+	bag_default_capa_ = capacity;
+}
 
 void Game::SetLootSpawnPreiod(double seconds) {
 	loot_spawn_period_ = seconds;
@@ -341,85 +554,6 @@ void Game::SetLootSpawnProbability(double probability) {
 
 double Game::GetLootSpawnProbability() const {
 	return loot_spawn_probability_;
-}
-
-
-Dog::Dog(Id id) : id_(id) {}
-
-
-Dog::Id Dog::GetId() const {
-	return id_;
-}
-
-
-Point Dog::GetPosition() const {
-	return position_;
-}
-
-
-Speed Dog::GetSpeed() const {
-	return speed_;
-}
-
-void Dog::SetSpeed(Speed speed) {
-	speed_ = speed;
-}
-
-
-Direction Dog::GetDirection() const {
-	return direction_;
-}
-
-void Dog::SetDirection(model::Direction direction) {
-	direction_ = direction;
-}
-
-
-void Dog::SetPosition(const Point pos) {
-	position_ = pos;
-}
-
-void Dog::Start() {
-	on_move_ = true;
-}
-
-void Dog::Stop() {
-	on_move_ = false;
-}
-
-bool Dog::IsMove() const {
-	return on_move_;
-}
-
-
-char DirectionToChar(model::Direction dir) {
-	return model::DirectionTitles[static_cast<unsigned char>(dir)];
-}
-
-
-Dimension Road::GetLength() const noexcept {
-	return IsHorizontal() ? std::abs(end_.x - start_.x) : std::abs(end_.y - start_.y);
-}
-
-Rectangle Road::GetRoadRect() const {
-
-	const auto [left, right] = std::minmax(start_.x, end_.x);
-	const auto [top, bottom] = std::minmax(start_.y, end_.y);
-	return {{left - SIZE, top - SIZE}, {right - left + SIZE * 2, bottom - top + SIZE * 2}};
-}
-
-bool Road::IsHorizontal() const noexcept {
-	return start_.y == end_.y;
-}
-
-bool Road::IsVertical() const noexcept {
-	return start_.x == end_.x;
-}
-
-bool Rectangle::IsPointInBound(Point p) const {
-	using namespace helper;
-	return LessOrEqual(position.x, p.x) && LessOrEqual(p.x, position.x + size.width) && LessOrEqual(position.y, p.y) &&
-		   LessOrEqual(p.y, position.y + size.height);
 }
 
 } // namespace model

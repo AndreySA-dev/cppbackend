@@ -28,7 +28,9 @@ add_library(game_model_lib STATIC
 )
 target_include_directories(game_model_lib PUBLIC CONAN_PKG::boost)
 target_link_libraries(game_model_lib PUBLIC CONAN_PKG::boost Threads::Threads)
-
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    target_compile_definitions(game_model_lib PRIVATE MYDEBUG)
+endif()
 
 add_library(game_server_lib STATIC
 	src/authenticator.cpp
@@ -48,7 +50,9 @@ add_library(game_server_lib STATIC
 )
 target_include_directories(game_server_lib PUBLIC CONAN_PKG::boost)
 target_link_libraries(game_server_lib PUBLIC game_model_lib )
-
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    target_compile_definitions(game_server_lib PRIVATE MYDEBUG)
+endif()
 
 add_executable(game_server 
 	src/commandline_parser.cpp

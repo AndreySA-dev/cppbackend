@@ -92,7 +92,15 @@ model::LootType JSONToLootType(const json::object jo) {
 		type.color = color->as_string();
 	}
 
-	type.scale = jo.at("scale").to_number<double>();
+	auto scale = jo.if_contains("scale");
+	if (scale) {
+		type.scale = scale->to_number<double>();
+	}
+
+	auto value = jo.if_contains("value");
+	if (value) {
+		type.value = value->to_number<size_t>();
+	}
 
 	return type;
 }
@@ -121,6 +129,11 @@ model::Map JSONToMap(const json::object& jo) {
 	if (dog_speed) {
 		model::Dimension speed = dog_speed->to_number<model::Dimension>();
 		map.SetDogDefaultSpeed(speed);
+	}
+
+	const json::value* dog_bag_capacity = jo.if_contains("bagCapacity");
+	if (dog_bag_capacity) {
+		map.SetBagCapacity(dog_bag_capacity->to_number<size_t>());
 	}
 
 	const json::value* loot_types = jo.if_contains("lootTypes");
@@ -201,6 +214,15 @@ void DogToJSON(const model::Dog& dog, json::object& jo) {
 	jo["speed"] = json::array({h_speed, v_speed});
 
 	jo["dir"] = std::string(1, DirectionToChar(dog.GetDirection()));
+
+	json::array bag_ja;
+	bag_ja.reserve(dog.GetBag().size());
+	for (auto loot : dog.GetBag()) {
+		bag_ja.push_back(json::object{{"id", *loot.id}, {"type", *loot.loot_type->id}});
+	}
+	jo["bag"] = std::move(bag_ja);
+
+	jo["score"] = dog.GetScore();
 }
 
 
@@ -215,10 +237,11 @@ void LootTypeToJSON(const model::LootType type, json::object& jo) {
 		jo["color"] = *type.color;
 	}
 	jo["scale"] = type.scale;
+	jo["value"] = type.value;
 }
 
 void LootToJSON(const model::Loot loot, json::object& jo) {
-	jo["type"] = *loot.type;
+	jo["type"] = *loot.loot_type->id;
 	jo["pos"] = json::array({loot.position.x, loot.position.y});
 }
 
@@ -232,11 +255,22 @@ model::Game LoadGame(const json::value& jv) {
 		game.SetDogDefaultSpeed(speed);
 	}
 
+	const json::value* capa_jv = cfg_jo.if_contains("defaultBagCapacity");
+	if (capa_jv) {
+		game.SetBagDefaultCapacity(capa_jv->to_number<size_t>());
+	}
+
 	for (const auto& json_map : cfg_jo.at("maps").as_array()) {
 		auto new_map = JSONToMap(json_map.as_object());
+
 		if (!new_map.GetDogDefaultSpeed() && game.GetDogDefaultSpeed()) {
 			new_map.SetDogDefaultSpeed(game.GetDogDefaultSpeed());
 		}
+
+		if (!new_map.GetBagCapacity() && game.GetBagDefaultCapacity()) {
+			new_map.SetBagCapacity(*game.GetBagDefaultCapacity());
+		}
+
 		game.AddMap(new_map);
 	}
 
@@ -265,7 +299,7 @@ void MapToDogsJSON(const model::Map& map, json::object& jo) {
 void MapToLootJSON(const model::Map& map, json::object& jo) {
 
 	json::object loots_jo;
-	for (const auto& loot : map.GetLoots()) {
+	for (const auto loot : map.GetLoots()) {
 		json::object loot_jo;
 		LootToJSON(loot, loot_jo);
 		loots_jo.emplace(std::to_string(*loot.id), std::move(loot_jo));

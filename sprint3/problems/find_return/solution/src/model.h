@@ -1,7 +1,9 @@
 #pragma once
 #include "tagged.h"
+#include "collision_detector.h"
 
 #include <chrono>
+#include <limits>
 #include <optional>
 #include <string>
 #include <unordered_map>
@@ -13,6 +15,9 @@ namespace model {
 using Dimension = double;
 using Coord = Dimension;
 using Speed = Dimension;
+
+// predeclare
+class Loot;
 
 
 struct Point {
@@ -115,10 +120,15 @@ class Office {
 		return offset_;
 	}
 
-  private:
+	Dimension GetWidth() const {
+		return width_;
+	}
+
+	private:
 	Id id_;
 	Point position_;
 	Offset offset_;
+	static inline  const Dimension width_{0.5};
 };
 
 
@@ -126,7 +136,7 @@ class Dog {
   public:
 	using Id = util::Tagged<size_t, Dog>;
 
-	Dog(Id id);
+	Dog(Id id, size_t bag_capacity);
 	Id GetId() const;
 	Point GetPosition() const;
 	Speed GetSpeed() const;
@@ -138,6 +148,17 @@ class Dog {
 	void Start();
 	void Stop();
 	bool IsMove() const;
+	bool HasBagFreeSpace() const;
+	size_t LootCount() const;
+	void AddLoot(Loot loot);
+	const std::vector<Loot> GetBag() const;
+	void GetScoreAndFreeBag();
+	Dimension GetWidth() const;
+
+	void SetBagCapacity(size_t capacity);
+	size_t GetBagCapacity() const;
+
+	size_t GetScore() const;
 
   private:
 	Point position_ = {0, 0};
@@ -145,24 +166,39 @@ class Dog {
 	Direction direction_ = Direction::NORTH;
 	bool on_move_ = false;
 	Id id_;
+
+	size_t bag_capa_ = 0;
+	std::vector<Loot> bag_;
+
+	size_t score_ = 0;
+
+	static inline const Dimension width_{0.6};
 };
+
 
 struct LootType {
 	using Id = util::Tagged<size_t, LootType>;
+	static inline const Id noid{std::numeric_limits<Id::ValueType>::max()};
+
+	Id id = noid;
 	std::string name;
-    std::string file;
-    std::string type;
-    std::optional<double> rotation = std::nullopt;
+	std::string file;
+	std::string type;
+	std::optional<int> rotation = std::nullopt;
 	std::optional<Color> color = std::nullopt;
 	double scale = 0.0;
+	size_t value = 0;
 };
+
 
 struct Loot {
 	using Id = util::Tagged<size_t, Loot>;
 	Id id;
-	LootType::Id type;
+	const LootType* loot_type;
 	Point position;
+	static inline const double width{0.0};
 };
+
 
 class Map {
   public:
@@ -187,29 +223,32 @@ class Map {
 	const Buildings& GetBuildings() const noexcept;
 	void AddOffice(Office office);
 	const Offices& GetOffices() const noexcept;
-	
-	
-	Dog& AddDog(Dog dog);
+
+
+	// Dog& AddDog(Dog dog);
+	Dog& AddDog(Dog::Id id);
 	const Dogs& GetDogs() const noexcept;
 	Dogs& GetDogs() noexcept;
 	Dog* GetDog(Dog::Id id);
 	const Dog* GetDog(Dog::Id id) const;
-	std::optional<Speed> GetDogDefaultSpeed() const noexcept;
 	size_t GetDogCount() const;
+	std::optional<Speed> GetDogDefaultSpeed() const noexcept;
 	void SetDogDefaultSpeed(std::optional<Speed> speed) noexcept;
-	
+
+	std::optional<size_t> GetBagCapacity() const;
+	void SetBagCapacity(size_t capacity);
+
 	void AddLootType(LootType loot_type);
 	LootType* GetLootType(LootType::Id id);
 	const LootType* GetLootType(LootType::Id id) const;
 	const LootTypes& GetLootTypes() const;
 	size_t GetLootTypeCount() const;
-	
-	void AddLoot(LootType::Id type, Point pos);
-	Loot* GetLoot(Loot::Id id);
-	const Loot* GetLoot(Loot::Id id) const;
+
+	void AddLoot(LootType::Id type_id, Point pos);
+	void AddLoot(const LootType* loot_type, Point pos);
 	const Loots& GetLoots() const;
 	size_t GetLootCount() const;
-	
+
 	void Act(std::chrono::steady_clock::duration duration, size_t new_loot_number);
 
 	Point GetRandPosOnRoad() const;
@@ -219,7 +258,9 @@ class Map {
 	using DogIdToIndex = std::unordered_map<Dog::Id, size_t, util::TaggedHasher<Dog::Id>>;
 	using DogToRoadIdx = std::unordered_map<Dog*, const Road*>;
 
-	void MoveDog(Dog& dog, Dimension distance);
+	// move dog and return new position
+	Point MoveDog(Dog& dog, Dimension distance);
+	size_t GetNextId();
 
 	Id id_;
 	std::string name_;
@@ -236,10 +277,34 @@ class Map {
 
 	LootTypes loot_types_;
 	Loots loots_;
-	
 
+	std::optional<size_t> dog_bag_capa_ = std::nullopt;
+
+	size_t next_id_ = 0; // get next id unique in map instance
 };
 
+namespace cld = collision_detector;
+
+class ItemGatherer : public collision_detector::ItemGathererProvider {
+  public:
+  
+	ItemGatherer(const Map::Offices& offices, const Map::Loots& loots );
+	void AddGatherer(Dog* dog, geom::Point2D from, geom::Point2D to/*, double width*/);
+
+	size_t ItemsCount() const override;
+	cld::Item GetItem(size_t idx) const override;
+	size_t GatherersCount() const override;
+	cld::Gatherer GetGatherer(size_t idx) const override;
+	bool IsIdxIsOfficeIdx(size_t idx) const;
+	Dog* GetDog(size_t idx);
+	const Loot& GetLootByItemIdx(size_t idx) const;
+
+  private:
+	const Map::Offices& offices_;
+	const Map::Loots& loots_;
+	std::vector<cld::Gatherer> gatherers_;
+	std::unordered_map<size_t, Dog*> gatherer_id_to_dog_;
+};
 
 class Game {
   public:
@@ -256,6 +321,9 @@ class Game {
 	void SetDogDefaultSpeed(std::optional<Speed> speed) noexcept;
 	std::optional<Speed> GetDogDefaultSpeed() const noexcept;
 
+	std::optional<size_t> GetBagDefaultCapacity() noexcept;
+	void SetBagDefaultCapacity(std::optional<size_t> capacity);
+
 	void SetLootSpawnPreiod(double seconds);
 	double GetLootSpawnPeriod() const;
 	void SetLootSpawnProbability(double probabiluty);
@@ -271,6 +339,9 @@ class Game {
 
 	double loot_spawn_period_ = 0.0;
 	double loot_spawn_probability_ = 0.0;
+
+	std::optional<size_t> bag_default_capa_ = 3;
 };
+
 
 } // namespace model
