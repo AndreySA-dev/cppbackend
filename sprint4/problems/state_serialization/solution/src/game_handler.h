@@ -48,6 +48,8 @@ class GameHandler : public std::enable_shared_from_this<GameHandler> {
 	std::pair<json::value, game::Code> HandleTickRequest(size_t milliseconds);
 
 	auth::Authenticator& GetAuthenticator();
+	const auth::Authenticator& GetAuthenticator() const;
+	const model::Game& GetGame() const;
 	net::strand<net::io_context::executor_type>& GetStrand();
 	void StartTick();
 	void StopTick();

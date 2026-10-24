@@ -17,9 +17,10 @@ class User {
   public:
 	using Id = util::Tagged<size_t, User>;
 	using IdHasher = util::TaggedHasher<User::Id>;
-	static Id noid;
+	static inline const Id noid{std::numeric_limits<Id::ValueType>::max()};
 
 	User(std::string name);
+	User(std::string name, Id id);
 	User(const User&) = delete;
 	User(User&& other);
 	User& operator=(const User& other) = delete;
@@ -27,6 +28,7 @@ class User {
 
 	const std::string& GetName() const noexcept;
 	Id GetId() const noexcept;
+	void SetNextId(size_t next_id);
 
 	void SetMap(model::Map* map_ptr);
 	model::Map* GetMap();
@@ -52,7 +54,9 @@ class Users {
 	Users() = default;
 
 	User* AddUser(std::string_view name);
+	User* AddUser(user::User&& user);
 	User* GetUser(User::Id id);
+	const User* GetUser(User::Id id) const;
 
 	iterator begin();
 	const const_iterator begin() const;

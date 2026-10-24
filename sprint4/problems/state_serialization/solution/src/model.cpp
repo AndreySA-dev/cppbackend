@@ -117,7 +117,9 @@ Map::Dogs& Map::GetDogs() noexcept {
 
 
 void Map::AddLootType(LootType loot_type) {
-	loot_type.id = LootType::Id(loot_types_.size());
+	size_t idx = loot_types_.size();
+	loot_type.id = LootType::Id(idx);
+	loot_type_name_idx_[loot_type.name] = idx;
 	loot_types_.push_back(std::move(loot_type));
 }
 
@@ -127,6 +129,11 @@ LootType* Map::GetLootType(LootType::Id id) {
 
 const LootType* Map::GetLootType(LootType::Id id) const {
 	return *id < loot_types_.size() ? &loot_types_[*id] : nullptr;
+}
+
+const LootType* Map::GetLootType(std::string name) const {
+	auto it = loot_type_name_idx_.find(name);
+	return it != loot_type_name_idx_.cend() ? &loot_types_[it->second] : nullptr;
 }
 
 const Map::LootTypes& Map::GetLootTypes() const {
@@ -149,9 +156,17 @@ void Map::AddLoot(const LootType* loot_type, Point pos) {
 	loots_.emplace_back(Loot::Id(loot_id), loot_type, pos);
 }
 
+void Map::AddLoot(Loot&& loot) {
+	loots_.push_back(std::move(loot));
+}
+
 const Map::Loots& Map::GetLoots() const {
 	return loots_;
 }
+
+// Map::Loots& Map::GetLoots() {
+// 	return loots_;
+// }
 
 size_t Map::GetLootCount() const {
 	return loots_.size();
@@ -244,6 +259,14 @@ Point Map::GetRandPosOnRoad() const {
 	rand_pos.x = rect.position.x + rect.size.width * helper::GetRandomNum(0.0, 1.0);
 	rand_pos.y = rect.position.y + rect.size.height * helper::GetRandomNum(0.0, 1.0);
 	return rand_pos;
+}
+
+void Map::SetNextId(size_t value) {
+	next_id_ = value;
+}
+
+size_t Map::GetCurrentNextId() const {
+	return next_id_;
 }
 
 Point Map::MoveDog(Dog& dog, Dimension distance) {
@@ -387,7 +410,7 @@ size_t Dog::LootCount() const {
 }
 
 void Dog::AddLoot(Loot loot) {
-	return bag_.push_back(loot);
+	return bag_.push_back(std::move(loot));
 }
 
 const std::vector<Loot> Dog::GetBag() const {
@@ -411,6 +434,10 @@ void Dog::SetBagCapacity(size_t capacity) {
 
 size_t Dog::GetBagCapacity() const {
 	return size_t();
+}
+
+void Dog::AddScore(size_t score) {
+	score_ += score;
 }
 
 size_t Dog::GetScore() const {
@@ -484,6 +511,8 @@ const Loot& ItemGatherer::GetLootByItemIdx(size_t idx) const {
 }
 
 
+Game::Game(std::string data_src_name) : data_src_name_(std::move(data_src_name)) {}
+
 void Game::AddMap(Map map) {
 
 	const size_t index = maps_.size();
@@ -554,6 +583,10 @@ void Game::SetLootSpawnProbability(double probability) {
 
 double Game::GetLootSpawnProbability() const {
 	return loot_spawn_probability_;
+}
+
+const std::string& Game::GetDataSourceName() const {
+	return data_src_name_;
 }
 
 } // namespace model

@@ -420,8 +420,8 @@ SCENARIO("Game config load and check LootType parameters") {
 		WHEN("load config") {
 			std::stringstream json_stream(json_data::json_cfg);
 			THEN("No exception, and load expected values") {
-				model::Game game;
-				REQUIRE_NOTHROW(game = json_loader::LoadGame(json_stream));
+				model::Game game("");
+				REQUIRE_NOTHROW(game = json_loader::LoadGame(json_stream, ""));
 				
 				REQUIRE(game.GetMaps().size() == 2);
 				CHECK(game.GetLootSpawnPeriod() == 5.000);

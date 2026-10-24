@@ -15,8 +15,6 @@ namespace json_loader {
 
 using namespace std::literals;
 
-namespace {
-
 json::value ParseFile(std::istream& input) {
 
 	std::string content((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
@@ -245,9 +243,9 @@ void LootToJSON(const model::Loot loot, json::object& jo) {
 	jo["pos"] = json::array({loot.position.x, loot.position.y});
 }
 
-model::Game LoadGame(const json::value& jv) {
+model::Game LoadGame(const json::value& jv, std::string data_source_name) {
 
-	model::Game game;
+	model::Game game(std::move(data_source_name));
 	auto& cfg_jo = jv.as_object();
 	const json::value* def_dog_speed = cfg_jo.if_contains("defaultDogSpeed");
 	if (def_dog_speed) {
@@ -283,7 +281,6 @@ model::Game LoadGame(const json::value& jv) {
 	return game;
 }
 
-} // namespace
 
 void MapToDogsJSON(const model::Map& map, json::object& jo) {
 
@@ -350,17 +347,17 @@ void MapToJSON(const model::Map& map, json::object& jo) {
 }
 
 
-model::Game LoadGame(std::istream& input) {
-	return LoadGame(ParseFile(input));
+model::Game LoadGame(std::istream& input, std::string data_source_name) {
+	return LoadGame(ParseFile(input), std::move(data_source_name));
 }
 
-model::Game LoadGame(const std::filesystem::path& json_path) {
+model::Game LoadGame(const std::filesystem::path& json_path, std::string data_source_name) {
 	// Загрузить содержимое файла json_path, например, в виде строки
 	// Распарсить строку как JSON, используя boost::json::parse
 	// Загрузить модель игры из файла
 
 	const auto cfg_jv = ParseFile(json_path);
-	return LoadGame(cfg_jv);
+	return LoadGame(cfg_jv, std::move(data_source_name));
 }
 
 

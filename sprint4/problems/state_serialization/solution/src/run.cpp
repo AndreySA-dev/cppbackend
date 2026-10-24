@@ -52,7 +52,8 @@ void Run(const start_opt::Args& run_options) {
 		}
 	});
 
-	model::Game game = json_loader::LoadGame(run_options.cfg_file_path);
+	std::filesystem::path cfg_path(run_options.cfg_file_path);
+	model::Game game = json_loader::LoadGame(cfg_path, cfg_path.filename());
 
 	loot_gen::LootGenerator loot{std::chrono::milliseconds(static_cast<int>(game.GetLootSpawnPeriod() * 1000)),
 		game.GetLootSpawnProbability() /*, []() { return helper::GetRandomNum(0.0, 1.0);  }*/};

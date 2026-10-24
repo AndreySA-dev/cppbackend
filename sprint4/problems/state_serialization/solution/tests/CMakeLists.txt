@@ -5,7 +5,8 @@ add_executable(game_server_tests
 	./helper_tests.cpp
 	./loot_generator_tests.cpp
 	./collision-detector-tests.cpp
+	./serialization_tests.cpp
 )
 
 target_link_libraries(game_server_tests PRIVATE CONAN_PKG::catch2)
-target_link_libraries(game_server_tests PRIVATE game_model_lib CONAN_PKG::boost )
+target_link_libraries(game_server_tests PRIVATE game_model_lib game_server_lib CONAN_PKG::boost )

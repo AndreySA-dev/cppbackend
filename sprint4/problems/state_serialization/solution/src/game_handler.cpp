@@ -152,6 +152,14 @@ auth::Authenticator& GameHandler::GetAuthenticator() {
 	return authenticator_;
 }
 
+const auth::Authenticator& GameHandler::GetAuthenticator() const {
+	return authenticator_;
+}
+
+const model::Game& GameHandler::GetGame() const {
+	return game_;
+}
+
 net::strand<net::io_context::executor_type>& GameHandler::GetStrand() {
 	return game_strand_;
 }

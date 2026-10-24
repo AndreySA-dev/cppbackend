@@ -13,6 +13,8 @@ struct Args {
 	std::string cfg_file_path;
 	std::string www_root_dir;
 	bool is_random_spawn;
+	std::string state_file;
+	size_t save_state_period;
 };
 
 
