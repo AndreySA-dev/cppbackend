@@ -5,6 +5,7 @@
 #include "model.h"
 #include "user.h"
 #include "loot_generator.h"
+#include "app_listener.h"
 
 #include <optional>
 #include <string_view>
@@ -50,10 +51,12 @@ class GameHandler : public std::enable_shared_from_this<GameHandler> {
 	auth::Authenticator& GetAuthenticator();
 	const auth::Authenticator& GetAuthenticator() const;
 	const model::Game& GetGame() const;
+	model::Game& GetGame();
 	net::strand<net::io_context::executor_type>& GetStrand();
 	void StartTick();
 	void StopTick();
 	void UpdateState(std::chrono::steady_clock::duration dur);
+	void AddListener(std::unique_ptr<listener::IApplicationListener> listener);
 	
 	private:
 	
@@ -72,6 +75,7 @@ class GameHandler : public std::enable_shared_from_this<GameHandler> {
 	std::chrono::steady_clock::time_point prev_upd_time_;
 	bool is_random_dog_spawn_ = false;
 	loot_gen::LootGenerator loot_generator_;
+	std::vector<std::unique_ptr<listener::IApplicationListener>> listeners_;
 };
 
 

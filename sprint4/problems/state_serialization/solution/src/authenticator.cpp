@@ -85,6 +85,7 @@ void Authenticator::RestorePlayer(user::User user, model::Map::Id map_id, token:
 	user.SetMap(map_ptr);
 	tokens_to_users_id_.insert({token, user.GetId()});
 	users_.AddUser(std::move(user));
+	user.SetNextId(users_.GetSize());
 }
 
 

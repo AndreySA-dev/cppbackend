@@ -4,6 +4,7 @@
 #include "model.h"
 #include "user.h"
 #include "token.h"
+#include <boost/serialization/vector.hpp>
 
 namespace model {
 
@@ -23,6 +24,11 @@ void serialize(Archive& arch, model::Point& point, [[maybe_unused]] const unsign
 // 	arch & user.getName();
 // }
 
+// template <typename Archive>
+// void serialize(Archive& arch, token::Token& token, [[maybe_unused]] const unsigned version) {
+// 	arch & *token;
+// }
+
 // } // namespace user
 
 namespace serialization {
@@ -31,6 +37,11 @@ namespace serialization {
 class LootRepr {
   public:
 	LootRepr() = default;
+	LootRepr(const LootRepr&) = default;
+	LootRepr(LootRepr&&) = default;
+	LootRepr& operator=(const LootRepr&) = default;
+	LootRepr& operator=(LootRepr&&) = default;
+
 	explicit LootRepr(const model::Loot& loot /*, const model::Map* map */);
 	model::Loot Restore(const model::Map& map) const;
 
@@ -48,11 +59,16 @@ class LootRepr {
 };
 
 class DogRepr {
-
   public:
 	DogRepr() = default;
+	DogRepr(const DogRepr&) = default;
+	DogRepr(DogRepr&&) = default;
+	DogRepr& operator=(const DogRepr&) = default;
+	DogRepr& operator=(DogRepr&&) = default;
+
 	explicit DogRepr(const model::Dog& dog /*, const model::Map* map */);
-	model::Dog Restore(const model::Map& map) const;
+	// model::Dog Restore(const model::Map& map) const;
+	const model::Dog& Restore(model::Map& map);
 
 	template <typename Archive>
 	void serialize(Archive& arch, [[maybe_unused]] const unsigned version) {
@@ -60,7 +76,7 @@ class DogRepr {
 		arch & speed_;
 		arch & direction_;
 		arch & on_move_;
-		arch&* id_;
+		arch&* dog_id_;
 		arch & bag_capa_;
 		arch & bag_;
 		arch & score_;
@@ -71,7 +87,7 @@ class DogRepr {
 	model::Speed speed_;
 	model::Direction direction_;
 	bool on_move_;
-	model::Dog::Id id_ = model::Dog::noid;
+	model::Dog::Id dog_id_ = model::Dog::noid;
 	size_t bag_capa_;
 	std::vector<LootRepr> bag_;
 	size_t score_ = 0;
@@ -81,6 +97,11 @@ class DogRepr {
 class MapRepr {
   public:
 	MapRepr() = default;
+	MapRepr(const MapRepr&) = default;
+	MapRepr(MapRepr&&) = default;
+	MapRepr& operator=(const MapRepr&) = default;
+	MapRepr& operator=(MapRepr&&) = default;
+
 	MapRepr(const model::Map& map);
 	void Restore(model::Map& map);
 
@@ -100,6 +121,11 @@ class MapRepr {
 class GameRepr {
   public:
 	GameRepr() = default;
+	GameRepr(const GameRepr&) = default;
+	GameRepr(GameRepr&&) = default;
+	GameRepr& operator=(const GameRepr&) = default;
+	GameRepr& operator=(GameRepr&&) = default;
+
 	GameRepr(const model::Game& game);
 	void Restore(model::Game& game);
 
@@ -137,31 +163,41 @@ class GameRepr {
 class OnlinePlayerRepr {
   public:
 	OnlinePlayerRepr() = default;
+	OnlinePlayerRepr(const OnlinePlayerRepr&) = default;
+	OnlinePlayerRepr(OnlinePlayerRepr&&) = default;
+	OnlinePlayerRepr& operator=(const OnlinePlayerRepr&) = default;
+	OnlinePlayerRepr& operator=(OnlinePlayerRepr&&) = default;
+
 	OnlinePlayerRepr(const user::User& user, token::Token token);
 	const std::string& GetUserName() const;
 	user::User::Id GetUserId() const;
 	model::Map::Id GetMapId() const;
 	token::Token GetUserToken() const;
-	std::pair<user::User, token::Token> Restore() const;
+	// std::pair<user::User, token::Token> Restore() const;
 
 	template <typename Archive>
 	void serialize(Archive& arch, [[maybe_unused]] const unsigned version) {
 		arch & name_;
-		arch & id_;
+		arch & *id_;
 		arch & *map_id_;
 		arch & *token_;
 	}
 
   private:
 	std::string name_;
-	user::User::Id id_;
-	model::Map::Id map_id_;
-	token::Token token_;
+	user::User::Id id_{user::User::noid};
+	model::Map::Id map_id_{""};
+	token::Token token_{""};
 };
 
 class AuthRepr {
   public:
 	AuthRepr() = default;
+	AuthRepr(const AuthRepr&) = default;
+	AuthRepr(AuthRepr&&) = default;
+	AuthRepr& operator=(const AuthRepr&) = default;
+	AuthRepr& operator=(AuthRepr&&) = default;
+
 	AuthRepr(const auth::Authenticator& authenticator);
 	void Restore(auth::Authenticator& authenticator);
 

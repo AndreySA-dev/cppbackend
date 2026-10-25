@@ -232,7 +232,6 @@ class Map {
 	// Dog& AddDog(Dog dog);
 	Dog& AddDog(Dog::Id id);
 	const Dogs& GetDogs() const noexcept;
-	Dogs& GetDogs() noexcept;
 	Dog* GetDog(Dog::Id id);
 	const Dog* GetDog(Dog::Id id) const;
 	size_t GetDogCount() const;
@@ -269,6 +268,8 @@ class Map {
 	using DogToRoadIdx = std::unordered_map<Dog*, const Road*>;
 	using LootTypeNameToIdx = std::unordered_map<std::string, size_t>;
 
+	Dogs& GetDogs() noexcept;
+	
 	// move dog and return new position
 	Point MoveDog(Dog& dog, Dimension distance);
 	size_t GetNextId();

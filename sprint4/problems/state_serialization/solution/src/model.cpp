@@ -83,7 +83,6 @@ Dog& Map::AddDog(Dog::Id id) {
 		dog_id_to_idx_.emplace(new_dog.GetId(), idx);
 		dog_to_road_idx_.clear();
 	} catch (...) {
-		// Удаляем офис из вектора, если не удалось вставить в unordered_map
 		dogs_.pop_back();
 		throw;
 	}
@@ -433,7 +432,7 @@ void Dog::SetBagCapacity(size_t capacity) {
 }
 
 size_t Dog::GetBagCapacity() const {
-	return size_t();
+	return bag_capa_;
 }
 
 void Dog::AddScore(size_t score) {

@@ -26,30 +26,54 @@ model::Loot LootRepr::Restore(const model::Map& map) const {
 
 DogRepr::DogRepr(const model::Dog& dog /*, const model::Map* map */)
 	: position_(dog.GetPosition()), speed_(dog.GetSpeed()), direction_(dog.GetDirection()), on_move_(dog.IsMove()),
-	  id_(dog.GetId()), bag_capa_(dog.GetBagCapacity()), score_(dog.GetScore()) {
+	  dog_id_(dog.GetId()), bag_capa_(dog.GetBagCapacity()), score_(dog.GetScore()) {
 	bag_.reserve(dog.GetBag().size());
 	for (const auto& loot : dog.GetBag()) { // TO-DO: use std::transform
 		bag_.push_back(LootRepr(loot));
 	}
 }
 
-model::Dog DogRepr::Restore(const model::Map& map) const {
-	model::Dog result(id_, bag_capa_);
-	result.SetPosition(position_);
-	result.SetSpeed(speed_);
-	result.SetDirection(direction_);
-	if (on_move_) {
-		result.Start();
-	}
-	result.SetBagCapacity(bag_capa_);
-	result.AddScore(score_);
+// model::Dog DogRepr::Restore(const model::Map& map) const {
+// 	model::Dog result(dog_id_, bag_capa_);
+// 	result.SetPosition(position_);
+// 	result.SetSpeed(speed_);
+// 	result.SetDirection(direction_);
+// 	if (on_move_) {
+// 		result.Start();
+// 	}
+// 	result.SetBagCapacity(bag_capa_);
+// 	result.AddScore(score_);
 
+// 	for (auto& loot_repr : bag_) {
+// 		auto loot = loot_repr.Restore(map);
+// 		result.AddLoot(loot);
+// 	}
+
+// 	return result;
+// }
+
+const model::Dog& DogRepr::Restore(model::Map& map) {
+	auto& new_dog = map.AddDog(dog_id_);
+	new_dog.SetPosition(position_);
+	new_dog.SetSpeed(speed_);
+	new_dog.SetDirection(direction_);
+	if (on_move_) {
+		new_dog.Start();
+	}
+	new_dog.SetBagCapacity(bag_capa_);
 	for (auto& loot_repr : bag_) {
 		auto loot = loot_repr.Restore(map);
-		result.AddLoot(loot);
+		new_dog.AddLoot(loot);
 	}
-
-	return result;
+	return new_dog;
+	// model::Point position_;
+	// model::Speed speed_;
+	// model::Direction direction_;
+	// bool on_move_;
+	// model::Dog::Id dog_id_ = model::Dog::noid;
+	// size_t bag_capa_;
+	// std::vector<LootRepr> bag_;
+	// size_t score_ = 0;
 }
 
 MapRepr::MapRepr(const model::Map& map) : next_id_(map.GetCurrentNextId()) {
@@ -61,6 +85,7 @@ MapRepr::MapRepr(const model::Map& map) : next_id_(map.GetCurrentNextId()) {
 	dogs_.reserve(map.GetDogs().size());
 	std::transform(map.GetDogs().cbegin(), map.GetDogs().cend(), std::back_inserter(dogs_),
 		[](auto& dog) { return DogRepr(dog); });
+	// next_id_ = map.GetDogs().size();
 }
 
 void MapRepr::Restore(model::Map& map) {
@@ -71,11 +96,17 @@ void MapRepr::Restore(model::Map& map) {
 	for (auto loot_repr : loots_) {
 		map.AddLoot(loot_repr.Restore(map));
 	}
-	std::transform(dogs_.begin(), dogs_.end(), std::back_inserter(map.GetDogs()),
-		[&map](auto& dog_repr) { return dog_repr.Restore(map); });
+	for (auto dog : dogs_) {
+		dog.Restore(map);
+	}
+	// std::transform(dogs_.begin(), dogs_.end(), std::back_inserter(map.GetDogs()),
+	// 	[&map](auto& dog_repr) { return dog_repr.Restore(map); });
 }
 
-GameRepr::GameRepr(const model::Game& game) : data_src_name_(game.GetDataSourceName()) {}
+GameRepr::GameRepr(const model::Game& game) : data_src_name_(game.GetDataSourceName()) {
+	std::transform(game.GetMaps().cbegin(), game.GetMaps().cend(), std::back_inserter(maps_),
+		[](auto& map) { return MapRepr(map); });
+}
 
 void GameRepr::Restore(model::Game& game) {
 	if (game.GetDataSourceName() != data_src_name_) {
@@ -128,18 +159,20 @@ token::Token OnlinePlayerRepr::GetUserToken() const {
 
 
 AuthRepr::AuthRepr(const auth::Authenticator& authenticator) {
-	std::transform(authenticator.GetTokens().cbegin(), authenticator.GetTokens().cend(), std::back_inserter(players_),
-		[&authenticator](auto& token) {
-			const user::User* user = authenticator.GetUser(token).first;
-			return OnlinePlayerRepr(*user, token);
-		});
+	auto tokens = authenticator.GetTokens();
+	std::transform(tokens.cbegin(), tokens.cend(), std::back_inserter(players_), [&authenticator](auto& token) {
+		const user::User* user = authenticator.GetUser(token).first;
+		auto online_player_repr = OnlinePlayerRepr(*user, token);
+		return online_player_repr;
+	});
 }
 
 
 void AuthRepr::Restore(auth::Authenticator& authenticator) {
-	 for (const auto& player : players_) {
-		authenticator.RestorePlayer(user::User{player.GetUserName(), player.GetUserId()}, player.GetMapId(), player.GetUserToken());
-	 }
+	for (const auto& player : players_) {
+		authenticator.RestorePlayer(
+			user::User{player.GetUserName(), player.GetUserId()}, player.GetMapId(), player.GetUserToken());
+	}
 }
 
 } // namespace serialization

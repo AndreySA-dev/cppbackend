@@ -17,7 +17,7 @@ User::User(std::string name, Id id) : name_(std::move(name)), id_(id) {
 	next_id_ = *id + 1;
 }
 
-User::User(User&& other) : name_(std::move(other.name_)), id_(std::move(other.id_)) {
+User::User(User&& other) : name_(std::move(other.name_)), id_(std::move(other.id_)), map_ptr_(other.map_ptr_) {
 	other.id_ = user::User::noid;
 }
 
@@ -25,6 +25,7 @@ User& User::operator=(User&& other) {
 	name_ = std::move(other.name_);
 	id_ = std::move(other.id_);
 	other.id_ = user::User::noid;
+	map_ptr_ = other.map_ptr_;
 	return *this;
 }
 
@@ -92,6 +93,7 @@ User* Users::AddUser(user::User&& user) {
 	decltype(user_name_to_index_.emplace()) add_name_idx_result;
 	
 	try {
+		// auto new_player_it = users_.insert( users_.end(), std::move(user));
 		auto& new_player = users_.emplace_back(std::move(user));
 		add_id_idx_result = user_id_to_index_.emplace(new_player.GetId(), idx);
 		if (!add_id_idx_result.second) {
@@ -116,6 +118,10 @@ User* Users::GetUser(User::Id id) {
 const User* Users::GetUser(User::Id id) const {
 	auto it = user_id_to_index_.find(id);
 	return it != user_id_to_index_.cend() ? &users_[it->second] : nullptr;
+}
+
+size_t Users::GetSize() const {
+	return users_.size();
 }
 
 

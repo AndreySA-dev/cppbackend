@@ -87,11 +87,11 @@ pair<json::value, game::Code> GameHandler::HandleGetPlayersRequest() const {
 
 	json::object jo;
 
-	size_t i = 0;
+	// size_t i = 0;
 	for (const auto& player : authenticator_.GetUsers()) {
-		string id_str = std::to_string(i);
-		jo.emplace(id_str, json::object{{"name"s, player.GetName()}});
-		++i;
+		// string id_str = std::to_string(i);
+		jo.emplace(std::to_string(*player.GetId()), json::object{{"name"s, player.GetName()}});
+		// ++i;
 	}
 
 	return {jo, game::Code::OK};
@@ -160,6 +160,10 @@ const model::Game& GameHandler::GetGame() const {
 	return game_;
 }
 
+model::Game& GameHandler::GetGame() {
+	return game_;
+}
+
 net::strand<net::io_context::executor_type>& GameHandler::GetStrand() {
 	return game_strand_;
 }
@@ -200,6 +204,14 @@ void GameHandler::UpdateState(std::chrono::steady_clock::duration duration) {
 			std::chrono::duration_cast<std::chrono::milliseconds>(duration), map.GetLootCount(), map.GetDogCount());
 		map.Act(duration, new_loot_count);
 	}
+
+	for (auto& listener : listeners_) {
+		listener->OnTick(std::chrono::duration_cast<std::chrono::milliseconds>(duration));
+	}
+}
+
+void GameHandler::AddListener(std::unique_ptr<listener::IApplicationListener> listener) {
+	listeners_.push_back(std::move(listener));
 }
 
 

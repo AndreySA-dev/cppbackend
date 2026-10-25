@@ -25,6 +25,12 @@ add_library(game_model_lib STATIC
 	src/geom.h
 	src/collision_detector.h
 	src/collision_detector.cpp
+	src/authenticator.cpp
+	src/authenticator.h
+	src/token.h
+	src/token.cpp
+	src/user.cpp
+	src/user.h
 )
 target_include_directories(game_model_lib PUBLIC CONAN_PKG::boost)
 target_link_libraries(game_model_lib PUBLIC CONAN_PKG::boost Threads::Threads)
@@ -33,8 +39,6 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 endif()
 
 add_library(game_server_lib STATIC
-	src/authenticator.cpp
-	src/authenticator.h
 	src/http_server.cpp
 	src/http_server.h
 	src/log.cpp
@@ -43,10 +47,11 @@ add_library(game_server_lib STATIC
 	src/request_handler.cpp
 	src/request_handler.h
 	src/sdk.h
-	src/token.h
-	src/token.cpp
-	src/user.cpp
-	src/user.h
+	src/game_serialization.h
+	src/game_serialization.cpp
+	src/game_saver.h
+	src/game_saver.cpp
+	src/app_listener.h
 )
 target_include_directories(game_server_lib PUBLIC CONAN_PKG::boost)
 target_link_libraries(game_server_lib PUBLIC game_model_lib )

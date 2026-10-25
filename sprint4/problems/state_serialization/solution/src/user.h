@@ -58,6 +58,8 @@ class Users {
 	User* GetUser(User::Id id);
 	const User* GetUser(User::Id id) const;
 
+	size_t GetSize() const;
+	
 	iterator begin();
 	const const_iterator begin() const;
 	const const_iterator cbegin() const;
