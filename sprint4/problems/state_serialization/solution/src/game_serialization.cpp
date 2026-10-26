@@ -4,20 +4,21 @@
 
 namespace serialization {
 
-LootRepr::LootRepr(const model::Loot& loot) : id_(loot.id), position_(loot.position) {
+LootRepr::LootRepr(const model::Loot& loot) : loot_id_(loot.id), position_(loot.position) {
 	if (!loot.loot_type) {
-		throw std::out_of_range("Loot error. No loot_type with name '" + loot_type_name_ + "'");
+		throw std::out_of_range("Loot rerialization error. No loot type.");
 	}
-	loot_type_name_ = loot.loot_type->name;
+	loot_type_id_ = loot.loot_type->id;
 }
 
 model::Loot LootRepr::Restore(const model::Map& map) const {
-	auto loot_type = map.GetLootType(loot_type_name_);
+	// auto loot_type = map.GetLootType(loot_type_name_);
+	auto loot_type = map.GetLootType(loot_type_id_);
 	if (!loot_type) {
-		throw std::out_of_range("Loot error. No loot_type with name '" + loot_type_name_ + "'");
+		throw std::out_of_range("Loot error. No loot_type id '" + std::to_string(*loot_type_id_) + "'");
 	}
 	model::Loot result;
-	result.id = id_;
+	result.id = loot_id_;
 	result.loot_type = loot_type;
 	result.position = position_;
 	return result;
@@ -28,29 +29,12 @@ DogRepr::DogRepr(const model::Dog& dog /*, const model::Map* map */)
 	: position_(dog.GetPosition()), speed_(dog.GetSpeed()), direction_(dog.GetDirection()), on_move_(dog.IsMove()),
 	  dog_id_(dog.GetId()), bag_capa_(dog.GetBagCapacity()), score_(dog.GetScore()) {
 	bag_.reserve(dog.GetBag().size());
-	for (const auto& loot : dog.GetBag()) { // TO-DO: use std::transform
-		bag_.push_back(LootRepr(loot));
-	}
+	// for (const auto& loot : dog.GetBag()) { // TO-DO: use std::transform
+	// 	bag_.push_back(LootRepr(loot));
+	// }
+	std::transform(dog.GetBag().begin(), dog.GetBag().end(), std::back_inserter(bag_),
+		[](const auto& loot) { return LootRepr(loot); });
 }
-
-// model::Dog DogRepr::Restore(const model::Map& map) const {
-// 	model::Dog result(dog_id_, bag_capa_);
-// 	result.SetPosition(position_);
-// 	result.SetSpeed(speed_);
-// 	result.SetDirection(direction_);
-// 	if (on_move_) {
-// 		result.Start();
-// 	}
-// 	result.SetBagCapacity(bag_capa_);
-// 	result.AddScore(score_);
-
-// 	for (auto& loot_repr : bag_) {
-// 		auto loot = loot_repr.Restore(map);
-// 		result.AddLoot(loot);
-// 	}
-
-// 	return result;
-// }
 
 const model::Dog& DogRepr::Restore(model::Map& map) {
 	auto& new_dog = map.AddDog(dog_id_);
@@ -66,17 +50,10 @@ const model::Dog& DogRepr::Restore(model::Map& map) {
 		new_dog.AddLoot(loot);
 	}
 	return new_dog;
-	// model::Point position_;
-	// model::Speed speed_;
-	// model::Direction direction_;
-	// bool on_move_;
-	// model::Dog::Id dog_id_ = model::Dog::noid;
-	// size_t bag_capa_;
-	// std::vector<LootRepr> bag_;
-	// size_t score_ = 0;
 }
 
-MapRepr::MapRepr(const model::Map& map) : next_id_(map.GetCurrentNextId()) {
+
+MapRepr::MapRepr(const model::Map& map) : map_id_(map.GetId()), next_id_(map.GetCurrentNextId()) {
 
 	loots_.reserve(map.GetLoots().size());
 	std::transform(map.GetLoots().cbegin(), map.GetLoots().cend(), std::back_inserter(loots_),
@@ -85,23 +62,22 @@ MapRepr::MapRepr(const model::Map& map) : next_id_(map.GetCurrentNextId()) {
 	dogs_.reserve(map.GetDogs().size());
 	std::transform(map.GetDogs().cbegin(), map.GetDogs().cend(), std::back_inserter(dogs_),
 		[](auto& dog) { return DogRepr(dog); });
-	// next_id_ = map.GetDogs().size();
 }
 
 void MapRepr::Restore(model::Map& map) {
 	map.SetNextId(next_id_);
-	// std::transform(loots_.begin(), loots_.end(), std::back_inserter(map.GetLoots()), [&map](auto& loot_repr) {
-	// 	return loot_repr.Restore(map);
-	// });
 	for (auto loot_repr : loots_) {
 		map.AddLoot(loot_repr.Restore(map));
 	}
 	for (auto dog : dogs_) {
 		dog.Restore(map);
 	}
-	// std::transform(dogs_.begin(), dogs_.end(), std::back_inserter(map.GetDogs()),
-	// 	[&map](auto& dog_repr) { return dog_repr.Restore(map); });
 }
+
+const model::Map::Id& MapRepr::GetMapId() const {
+	return map_id_;
+}
+
 
 GameRepr::GameRepr(const model::Game& game) : data_src_name_(game.GetDataSourceName()) {
 	std::transform(game.GetMaps().cbegin(), game.GetMaps().cend(), std::back_inserter(maps_),
@@ -115,23 +91,12 @@ void GameRepr::Restore(model::Game& game) {
 	if (game.GetMaps().size() != maps_.size()) {
 		throw std::logic_error("Error game load. Different maps number in saved state.");
 	}
-	auto dest_map_it = game.GetMaps().begin();
 	for (auto& map_repr : maps_) {
-		map_repr.Restore(*dest_map_it);
-		dest_map_it++;
+		auto map = game.FindMap(map_repr.GetMapId());
+		map_repr.Restore(*map);
 	}
 }
 
-// UserRepr::UserRepr(const user::User& user)
-// 	: name_(user.GetName()), id_(user.GetId()), map_id_(user.GetMap()->GetId()) {}
-
-// user::User UserRepr::Restore(auth::Authenticator& authenticator) {
-// 	user::User result(name_, id_);
-// 	auto map = authenticator.GetGame().FindMap(map_id_);
-// 	result.SetMap(map);
-// 	result.SetNextId(next_id_);
-// 	return result;
-// }
 
 OnlinePlayerRepr::OnlinePlayerRepr(const user::User& user, token::Token token)
 	: name_(user.GetName()), id_(user.GetId()), map_id_(user.GetMap()->GetId()), token_(token) {}
@@ -152,11 +117,6 @@ token::Token OnlinePlayerRepr::GetUserToken() const {
 	return token_;
 }
 
-// std::pair<user::User, token::Token> OnlinePlayerRepr::Restore() const {
-// 	user::User user{name_, id_};
-// 	return {user::User(), token_};
-// }
-
 
 AuthRepr::AuthRepr(const auth::Authenticator& authenticator) {
 	auto tokens = authenticator.GetTokens();
@@ -166,7 +126,6 @@ AuthRepr::AuthRepr(const auth::Authenticator& authenticator) {
 		return online_player_repr;
 	});
 }
-
 
 void AuthRepr::Restore(auth::Authenticator& authenticator) {
 	for (const auto& player : players_) {

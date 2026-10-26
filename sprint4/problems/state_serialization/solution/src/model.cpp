@@ -151,7 +151,6 @@ void Map::AddLoot(LootType::Id type_id, Point pos) {
 
 void Map::AddLoot(const LootType* loot_type, Point pos) {
 	size_t loot_id = GetNextId();
-	// loots_[Loot::Id{loot_id}] = {loot_type, pos};
 	loots_.emplace_back(Loot::Id(loot_id), loot_type, pos);
 }
 

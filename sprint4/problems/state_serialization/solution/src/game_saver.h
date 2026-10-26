@@ -54,7 +54,6 @@ class FileSerializationListener : public listener::IApplicationListener {
 	FileSaver file_saver_;
 	std::chrono::milliseconds save_period_;
 	std::chrono::milliseconds past_from_save_;
-	// std::chrono::steady_clock::time_point prev_save_time_;
 
 };
 

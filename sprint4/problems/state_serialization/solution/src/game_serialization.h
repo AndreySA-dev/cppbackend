@@ -16,23 +16,8 @@ void serialize(Archive& arch, model::Point& point, [[maybe_unused]] const unsign
 
 } // namespace model
 
-// namespace user {
-
-// template <typename Archive>
-// void serialize(Archive& arch, user::User& user, [[maybe_unused]] const unsigned version) {
-// 	arch & user.GetId();
-// 	arch & user.getName();
-// }
-
-// template <typename Archive>
-// void serialize(Archive& arch, token::Token& token, [[maybe_unused]] const unsigned version) {
-// 	arch & *token;
-// }
-
-// } // namespace user
 
 namespace serialization {
-
 
 class LootRepr {
   public:
@@ -47,14 +32,16 @@ class LootRepr {
 
 	template <typename Archive>
 	void serialize(Archive& arch, [[maybe_unused]] const unsigned version) {
-		arch&* id_;
-		arch & loot_type_name_;
+		arch&* loot_id_;
+		// arch & loot_type_name_;
+		arch & *loot_type_id_;
 		arch & position_;
 	}
 
   private:
-	model::Loot::Id id_ = model::Loot::noid;
-	std::string loot_type_name_;
+	model::Loot::Id loot_id_ = model::Loot::noid;
+	// std::string loot_type_name_;
+	model::LootType::Id loot_type_id_{model::LootType::noid};
 	model::Point position_;
 };
 
@@ -67,7 +54,6 @@ class DogRepr {
 	DogRepr& operator=(DogRepr&&) = default;
 
 	explicit DogRepr(const model::Dog& dog /*, const model::Map* map */);
-	// model::Dog Restore(const model::Map& map) const;
 	const model::Dog& Restore(model::Map& map);
 
 	template <typename Archive>
@@ -105,16 +91,20 @@ class MapRepr {
 	MapRepr(const model::Map& map);
 	void Restore(model::Map& map);
 
+	const model::Map::Id& GetMapId() const;
+
 	template <typename Archive>
 	void serialize(Archive& arch, [[maybe_unused]] const unsigned version) {
 		arch & loots_;
 		arch & dogs_;
+		arch & *map_id_;
 		arch & next_id_;
 	}
 
   private:
 	std::vector<LootRepr> loots_;
 	std::vector<DogRepr> dogs_;
+	model::Map::Id map_id_{""};
 	size_t next_id_;
 };
 
@@ -140,25 +130,6 @@ class GameRepr {
 	std::string data_src_name_;
 };
 
-// class UserRepr {
-//   public:
-// 	UserRepr() = default;
-// 	UserRepr(const user::User& user);
-// 	user::User Restore(auth::Authenticator& authenticator);
-
-// 	template <typename Archive>
-// 	void serialize(Archive& arch, [[maybe_unused]] const unsigned version) {
-// 		arch & name_;
-// 		arch & id_;
-// 		arch & *map_id_;
-// 	}
-
-//   private:
-// 	std::string name_;
-// 	user::User::Id id_;
-// 	model::Map::Id map_id_;
-// 	size_t next_id_;
-// };
 
 class OnlinePlayerRepr {
   public:
@@ -173,7 +144,6 @@ class OnlinePlayerRepr {
 	user::User::Id GetUserId() const;
 	model::Map::Id GetMapId() const;
 	token::Token GetUserToken() const;
-	// std::pair<user::User, token::Token> Restore() const;
 
 	template <typename Archive>
 	void serialize(Archive& arch, [[maybe_unused]] const unsigned version) {
@@ -209,7 +179,5 @@ class AuthRepr {
   private:
 	std::vector<OnlinePlayerRepr> players_;
 };
-
-
 
 } // namespace serialization

@@ -111,7 +111,6 @@ void Run(const start_opt::Args& run_options) {
 
 	http_handler::LoggingRequestHandler logging_handler{handler};
 
-
 	http_server::ServeHttp(ioc, {address, port}, [&logging_handler](auto&& req, const auto& socket, auto&& send) {
 		logging_handler(std::forward<decltype(req)>(req), std::forward<decltype(socket)>(socket),
 			std::forward<decltype(send)>(send));

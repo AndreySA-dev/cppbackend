@@ -90,6 +90,7 @@ class Road {
 	Point end_;
 };
 
+
 class Building {
   public:
 	explicit Building(Rectangle bounds) noexcept : bounds_{bounds} {}
@@ -101,6 +102,7 @@ class Building {
   private:
 	Rectangle bounds_;
 };
+
 
 class Office {
   public:
@@ -228,8 +230,6 @@ class Map {
 	void AddOffice(Office office);
 	const Offices& GetOffices() const noexcept;
 
-
-	// Dog& AddDog(Dog dog);
 	Dog& AddDog(Dog::Id id);
 	const Dogs& GetDogs() const noexcept;
 	Dog* GetDog(Dog::Id id);
@@ -252,7 +252,6 @@ class Map {
 	void AddLoot(const LootType* loot_type, Point pos);
 	void AddLoot(Loot&& loot);
 	const Loots& GetLoots() const;
-	// Loots& GetLoots();
 	size_t GetLootCount() const;
 
 	void Act(std::chrono::steady_clock::duration duration, size_t new_loot_number);

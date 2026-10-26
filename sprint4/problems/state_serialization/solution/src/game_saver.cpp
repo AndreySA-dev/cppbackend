@@ -16,68 +16,6 @@ namespace fs = std::filesystem;
 using InputArchive = boost::archive::binary_iarchive;
 using OutputArchive = boost::archive::binary_oarchive;
 
-
-// void SaveState(std::shared_ptr<game_handler::GameHandler> game_h, fs::path file_path, net::io_context& ioc /*,
-// net::strand<net::io_context::executor_type>& game_strand */) {
-
-// (void)ioc;
-// // (void)game_strand;
-// // sr::GameRepr game_repr(game_h->GetGame());
-// auto game_repr = std::make_shared<sr::GameRepr>(game_h->GetGame());
-// // sr::AuthRepr auth_repr(game_h->GetAuthenticator());
-// auto auth_repr = std::make_shared<sr::AuthRepr>(game_h->GetGame());
-
-// auto file_save = [game_repr, auth_repr, file_path]() {
-// 	fs::path tmp_file_path = file_path.parent_path() / file_path.filename();
-// 	bool is_save_correct = false;
-// 	if (auto ofile = std::ofstream(tmp_file_path.string(), std::ios::binary)) {
-// 		OutputArchive oa{ofile};
-// 		oa << *game_repr;
-// 		oa << *auth_repr;
-// 		is_save_correct = true;
-// 	}
-
-// 	if (is_save_correct) {
-// 		fs::rename(tmp_file_path, file_path);
-// 	}
-// };
-
-// fs::path tmp_file_path = file_path.parent_path() / file_path.filename();
-// bool is_save_correct = false;
-// if (auto ofile = std::ofstream(tmp_file_path.string(), std::ios::binary)) {
-// 	OutputArchive oa{ofile};
-// 	oa << game_repr;
-// 	oa << auth_repr;
-// 	is_save_correct = true;
-// }
-
-// if (is_save_correct) {
-// 	fs::rename(tmp_file_path, file_path);
-// }
-// }
-
-// void LoadState(std::shared_ptr<game_handler::GameHandler> game_h, fs::path file_path, net::io_context& ioc) {
-// (void)ioc;
-// (void)game_h;
-// // (void)game_strand;
-
-// if (!fs::exists(file_path)) {
-// 	return;
-// }
-
-// sr::GameRepr game_repr;
-// sr::AuthRepr auth_repr;
-
-// if (auto ifile = std::ifstream(file_path.string(), std::ios::binary)) {
-// 	InputArchive ia{ifile};
-// 	ia >> game_repr;
-// 	ia >> auth_repr;
-// }
-// game_repr.Restore(game_h->GetGame()); // game need to be loaded first
-// auth_repr.Restore(game_h->GetAuthenticator());
-// }
-
-
 FileSaver::FileSaver(game_handler::GameHandler& game_h, fs::path save_path, net::io_context& ioc)		 //
 	: game_h_(game_h), save_path_(std::move(save_path)), ioc_(ioc), save_strand_(net::make_strand(ioc_)) //
 {}

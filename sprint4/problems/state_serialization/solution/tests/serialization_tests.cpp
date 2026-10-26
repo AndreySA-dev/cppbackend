@@ -5,13 +5,19 @@
 #include <boost/serialization/vector.hpp>
 #include <catch2/catch_test_macros.hpp>
 
-#include "../src/json_loader.h"
-#include "../src/model.h"
+#include "../src/authenticator.h"
+#include "../src/game_handler.h"
 #include "../src/game_serialization.h"
+#include "../src/json_loader.h"
+#include "../src/loot_generator.h"
+#include "../src/model.h"
+
 #include <filesystem>
 #include <sstream>
 #include <string>
 #include <vector>
+
+#include <boost/asio.hpp>
 
 using namespace std::literals;
 using namespace std;
@@ -19,13 +25,16 @@ using namespace std;
 using InputArchive = boost::archive::text_iarchive;
 using OutputArchive = boost::archive::text_oarchive;
 
+namespace net = boost::asio;
+
 struct Fixture {
 	std::ostringstream strm{ios::binary};
 	OutputArchive output_archive{strm};
 	string data;
 };
 
-SCENARIO_METHOD(Fixture, "Point serialization") {
+SCENARIO_METHOD(Fixture, "game state serialization") {
+
 	GIVEN("A point") {
 		const model::Point p{123, 456};
 		WHEN("point is serialized") {
@@ -48,24 +57,7 @@ SCENARIO_METHOD(Fixture, "Point serialization") {
 
 		const auto map_jv = json_loader::ParseFile("./tests/config_test_map.json");
 		model::Map init_map = json_loader::JSONToMap(map_jv.as_object());
-		// model::Map init_map(model::Map::Id{"test_map1"}, "TestMap1");
 
-
-		// init_map.AddLootType(model::LootType{.id = model::LootType::Id{123},
-		// 	.name = "wallet",
-		// 	.type = "obj",
-		// 	.rotation = 45,
-		// 	.color = "#00FF41",
-		// 	.scale = 0.5,
-		// 	.value = 10});
-
-		// init_map.AddLootType(model::LootType{.id = model::LootType::Id{456},
-		// 	.name = "key",
-		// 	.type = "obj",
-		// 	.rotation = 90,
-		// 	.color = "#10AAFA",
-		// 	.scale = 0.75,
-		// 	.value = 25});
 		init_map.AddLoot(init_map.GetLootTypes()[0].id, {5, 9});
 		init_map.AddLoot(init_map.GetLootTypes()[1].id, {15, 21});
 
@@ -99,18 +91,21 @@ SCENARIO_METHOD(Fixture, "Point serialization") {
 			}
 		}
 		AND_WHEN("dog is serialized") {
-			serialization::DogRepr dog_repr(init_map.GetDogs()[1]);
+			serialization::DogRepr dog_repr(*init_map.GetDog(model::Dog::Id{22}));
 			output_archive << dog_repr;
 			THEN("after deserialized dog has initial value") {
+				const auto map_jv = json_loader::ParseFile("./tests/config_test_map.json");
+				model::Map restored_map = json_loader::JSONToMap(map_jv.as_object());
+
 				data = strm.str();
 				istringstream iss(data);
 				InputArchive input_archive{iss};
 
 				serialization::DogRepr dr;
 				input_archive >> dr;
-				model::Dog restored_dog = dr.Restore(init_map);
+				const model::Dog& restored_dog = dr.Restore(restored_map);
 
-				model::Dog init_dog1 = init_map.GetDogs()[1];
+				model::Dog init_dog1 = *init_map.GetDog(model::Dog::Id{22});
 				CHECK(restored_dog.GetBagCapacity() == init_dog1.GetBagCapacity());
 				CHECK(restored_dog.GetDirection() == init_dog1.GetDirection());
 				CHECK(restored_dog.GetId() == init_dog1.GetId());
@@ -139,10 +134,38 @@ SCENARIO_METHOD(Fixture, "Point serialization") {
 				CHECK(restored_map.GetLoots()[1].position.y == init_map.GetLoots()[1].position.y);
 				CHECK(restored_map.GetLoots()[1].loot_type->name == init_map.GetLoots()[1].loot_type->name);
 
-				CHECK(restored_map.GetDogs()[1].GetBag()[1].loot_type->name ==
-					  init_map.GetDogs()[1].GetBag()[1].loot_type->name);
-				CHECK(restored_map.GetDogs()[1].GetId() == init_map.GetDogs()[1].GetId());
+				CHECK((*restored_map.GetDog(model::Dog::Id{22})).GetBag()[1].loot_type->name ==
+					  (*init_map.GetDog(model::Dog::Id{22})).GetBag()[1].loot_type->name);
 				CHECK(restored_map.GetCurrentNextId() == init_map.GetCurrentNextId());
+			}
+		}
+	}
+
+	GIVEN("Full game state") {
+		auto game = json_loader::LoadGame("./tests/config_test.json", "file#config_test_map.json");
+		auth::Authenticator au(game);
+
+		game.GetMaps()[0].AddLoot(model::LootType::Id(0), {10, 5});
+		au.AddUser("Sharik", model::Map::Id("map1")); // <-- user ID = 0
+		game.GetMaps()[0].AddDog(model::Dog::Id(0));
+		auto dog = game.GetMaps()[0].GetDog(model::Dog::Id(0));
+		dog->AddLoot(model::Loot{model::Loot::Id{11}, &game.GetMaps()[0].GetLootTypes()[0], {0, 0}});
+
+
+		WHEN("game is serialized") {
+			serialization::GameRepr game_repr(game);
+			serialization::AuthRepr auth_repr(au);
+			output_archive << game_repr;
+			output_archive << auth_repr;
+			THEN("Deserialize without exception") {
+				data = strm.str();
+				istringstream iss(data);
+				InputArchive input_archive{iss};
+
+				serialization::GameRepr gr;
+				serialization::AuthRepr ar;
+				input_archive >> gr;
+				input_archive >> ar;
 			}
 		}
 	}
