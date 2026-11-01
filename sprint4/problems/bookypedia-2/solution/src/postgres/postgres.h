@@ -2,56 +2,84 @@
 #include <pqxx/connection>
 #include <pqxx/transaction>
 
+#include "../app/unit_of_work.h"
 #include "../domain/author.h"
 #include "../domain/book.h"
 
+
 namespace postgres {
+// DATABASE SECTION ===========================================================
+class Database {
+  public:
+	explicit Database(pqxx::connection connection);
+
+	pqxx::connection& GetConection();
+	// AuthorRepositoryImpl& GetAuthors() & {
+	// 	return authors_;
+	// }
+	// BookRepositoryImpl& GetBooks() & {
+	// 	return books_;
+	// }
+
+  private:
+	pqxx::connection connection_;
+	// AuthorRepositoryImpl authors_{connection_};
+	// BookRepositoryImpl books_{connection_};
+};
 
 // AUTHOR SECTION ===========================================================
 class AuthorRepositoryImpl : public domain::AuthorRepository {
-public:
-    explicit AuthorRepositoryImpl(pqxx::connection& connection)
-        : connection_{connection} {
-    }
+  public:
+	explicit AuthorRepositoryImpl(pqxx::work& work) : work_{work} {}
 
-    void Save(const domain::Author& author) override;
+	void Save(const domain::Author& author) override;
 	std::vector<domain::Author> Load() override;
 
-private:
-    pqxx::connection& connection_;
+  private:
+	pqxx::work& work_;
 };
 
 // BOOK SECTION ===========================================================
 class BookRepositoryImpl : public domain::BookRepository {
-public:
-    explicit BookRepositoryImpl(pqxx::connection& connection)
-        : connection_{connection} {
-    }
+  public:
+	explicit BookRepositoryImpl(pqxx::work& work) : work_{work} {}
 
-    void Save(const domain::Book& book) override;
+	void Save(const domain::Book& book) override;
 	std::vector<domain::Book> Load() override;
 	std::vector<domain::Book> GetAuthorBooks(const domain::AuthorId& author_id) override;
 
-private:
-    pqxx::connection& connection_;
+  private:
+	pqxx::work& work_;
 };
 
-// DATABASE SECTION ===========================================================
-class Database {
-public:
-    explicit Database(pqxx::connection connection);
 
-    AuthorRepositoryImpl& GetAuthors() & {
-        return authors_;
-    }
-    BookRepositoryImpl& GetBooks() & {
-        return books_;
-    }
+// UoW SECTION ===========================================================
+class UnitOfWorkImpl : public app::UnitOfWork {
+  public:
+	UnitOfWorkImpl(pqxx::connection& connection);
+	void AddAuthor(domain::Author author) override;
+	std::vector<domain::Author> GetAuthors() override;
+	void AddBook(domain::Book book) override;
+	std::vector<domain::Book> GetBooks() override;
+	std::vector<domain::Book> GetAuthorBooks(const domain::AuthorId author_id) override;
+	void Commit() override;
 
-private:
-    pqxx::connection connection_;
-    AuthorRepositoryImpl authors_{connection_};
-    BookRepositoryImpl books_{connection_};
+  private:
+	pqxx::work work_;
+	AuthorRepositoryImpl authors_repo;
+	BookRepositoryImpl books_repo;
 };
 
-}  // namespace postgres
+
+class UnitOfWorkFactoryImpl : public app::UnitOfWorkFactory {
+  public:
+	UnitOfWorkFactoryImpl(pqxx::connection& connection);
+	std::unique_ptr<app::UnitOfWork> GetUoW() override;
+
+	
+  private:
+	pqxx::connection& connection_;
+};
+
+
+} // namespace postgres

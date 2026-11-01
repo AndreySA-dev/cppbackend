@@ -8,6 +8,7 @@
 #include "../app/use_cases.h"
 #include "../menu/menu.h"
 
+using namespace std;
 using namespace std::literals;
 namespace ph = std::placeholders;
 
@@ -47,18 +48,20 @@ View::View(menu::Menu& menu, app::UseCases& use_cases, std::istream& input, std:
 	menu_.AddAction("ShowAuthorBooks"s, {}, "Show author books"s, std::bind(&View::ShowAuthorBooks, this));
 }
 
-bool View::AddAuthor(std::istream& cmd_input) const {
+bool View::AddAuthor(std::istream& cmd_input) const { // <------- MENU ACTION
 	try {
 		std::string name;
 		std::getline(cmd_input, name);
 		boost::algorithm::trim(name);
+		app::UseCasesGuard guard(use_cases_);
 		use_cases_.AddAuthor(std::move(name));
 	} catch (const std::exception&) { output_ << "Failed to add author"sv << std::endl; }
 	return true;
 }
 
-bool View::AddBook(std::istream& cmd_input) const {
+bool View::AddBook(std::istream& cmd_input) const {   // <------- MENU ACTION
 	try {
+		app::UseCasesGuard guard(use_cases_);
 		if (auto params = GetBookParams(cmd_input)) {
 			use_cases_.AddBook(params->author_id, params->title, params->publication_year);
 		}
@@ -69,19 +72,22 @@ bool View::AddBook(std::istream& cmd_input) const {
 	return true;
 }
 
-bool View::ShowAuthors() const {
+bool View::ShowAuthors() const {  // <------- MENU ACTION
+	app::UseCasesGuard guard(use_cases_);
 	PrintVector(output_, GetAuthors());
 	return true;
 }
 
-bool View::ShowBooks() const {
+bool View::ShowBooks() const {  // <------- MENU ACTION
+	app::UseCasesGuard guard(use_cases_);
 	PrintVector(output_, GetBooks());
 	return true;
 }
 
-bool View::ShowAuthorBooks() const {
+bool View::ShowAuthorBooks() const {  // <------- MENU ACTION
 	// TODO: handle error
 	try {
+		app::UseCasesGuard guard(use_cases_);
 		if (auto author_id = SelectAuthor()) {
 			PrintVector(output_, GetAuthorBooks(*author_id));
 		}
@@ -99,8 +105,15 @@ std::optional<detail::AddBookParams> View::GetBookParams(std::istream& cmd_input
 	std::getline(cmd_input, params.title);
 	boost::algorithm::trim(params.title);
 
+	// output_ << "Enter author name or empty line to select from list:" << std::endl;
+	// std::optional<string> author_id = std::nullopt;
+	// std::string author_name;
+	// if (getline(input_, author_name) && (author_id = )) {
+		
+	// }
+
 	auto author_id = SelectAuthor();
-	if (not author_id.has_value())
+	if (!author_id.has_value())
 		return std::nullopt;
 	else {
 		params.author_id = author_id.value();

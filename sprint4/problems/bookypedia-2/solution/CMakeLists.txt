@@ -14,18 +14,22 @@ add_library(libbookypedia STATIC
 	src/menu/menu.h
 	src/ui/view.cpp
 	src/ui/view.h
+	src/app/use_cases.cpp
 	src/app/use_cases.h
 	src/app/use_cases_impl.cpp
 	src/app/use_cases_impl.h
+	src/app/unit_of_work.h
+	src/app/unit_of_work.cpp
 	src/domain/author.cpp
 	src/domain/author.h
-	src/domain/author_fwd.h
 	src/domain/book.h
+	src/domain/domain_fwd.h
 	src/util/tagged.h
 	src/util/tagged_uuid.cpp
 	src/util/tagged_uuid.h
 	src/postgres/postgres.cpp
 	src/postgres/postgres.h
+
 )
 target_link_libraries(libbookypedia PUBLIC CONAN_PKG::boost Threads::Threads CONAN_PKG::libpq CONAN_PKG::libpqxx)
 

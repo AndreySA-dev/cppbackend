@@ -11,71 +11,6 @@ using namespace std;
 using namespace std::literals;
 using pqxx::operator"" _zv;
 
-void AuthorRepositoryImpl::Save(const domain::Author& author) {
-	// Пока каждое обращение к репозиторию выполняется внутри отдельной транзакции
-	// В будущих уроках вы узнаете про паттерн Unit of Work, при помощи которого сможете несколько
-	// запросов выполнить в рамках одной транзакции.
-	// Вы также может самостоятельно почитать информацию про этот паттерн и применить его здесь.
-	pqxx::work work{connection_};
-	work.exec_params(
-		R"(
-INSERT INTO authors (id, name) VALUES ($1, $2)
-ON CONFLICT (id) DO UPDATE SET name=$2;
-)"_zv,
-		author.GetId().ToString(), author.GetName());
-	work.commit();
-}
-
-std::vector<domain::Author> AuthorRepositoryImpl::Load() {
-	std::vector<domain::Author> result;
-	pqxx::read_transaction read(connection_);
-	for (auto [id, name] : read.query<string_view, string_view>("SELECT id, name FROM authors ORDER BY name"_zv)) {
-		result.emplace_back(domain::AuthorId::FromString(std::string(id)), std::string(name));
-	}
-
-	return result;
-}
-
-
-void BookRepositoryImpl::Save(const domain::Book& book) {
-	// Пока каждое обращение к репозиторию выполняется внутри отдельной транзакции
-	// В будущих уроках вы узнаете про паттерн Unit of Work, при помощи которого сможете несколько
-	// запросов выполнить в рамках одной транзакции.
-	// Вы также может самостоятельно почитать информацию про этот паттерн и применить его здесь.
-	pqxx::work work{connection_};
-	work.exec_params(
-		R"(
-INSERT INTO books (id, author_id, title, publication_year) VALUES ($1, $2, $3, $4)
-)"_zv,
-		book.GetId().ToString(), book.GetAuthorId().ToString(), book.GetTitle(), book.GetYear());
-
-	work.commit();
-}
-
-std::vector<domain::Book> BookRepositoryImpl::Load() {
-	std::vector<domain::Book> result;
-	pqxx::read_transaction read(connection_);
-	for (auto [id, author_id, title, year] : read.query<string_view, string_view, string_view, int>(
-			 "SELECT id, author_id, title, publication_year FROM books ORDER BY title"_zv)) {
-		result.emplace_back(domain::BookId::FromString(std::string(id)),
-			domain::AuthorId::FromString(std::string(author_id)), std::string(title), year);
-	}
-
-	return result;
-}
-
-std::vector<domain::Book> BookRepositoryImpl::GetAuthorBooks(const domain::AuthorId& author_id) {
-	std::vector<domain::Book> result;
-	pqxx::read_transaction read(connection_);
-	for (auto [id, author_id, title, year] : read.query<string_view, string_view, string_view, int>(
-			 "SELECT id, author_id, title, publication_year FROM books WHERE author_id = '" + read.esc(author_id.ToString()) + "' ORDER BY publication_year, title;")) {
-		result.emplace_back(domain::BookId::FromString(std::string(id)),
-			domain::AuthorId::FromString(std::string(author_id)), std::string(title), year);
-	}
-
-	return result;
-}
-
 
 Database::Database(pqxx::connection connection) : connection_{std::move(connection)} {
 	pqxx::work work{connection_};
@@ -95,9 +30,125 @@ CREATE TABLE IF NOT EXISTS books (
 );
 )"_zv);
 
+	work.exec(R"(
+CREATE TABLE IF NOT EXISTS book_tags (
+	book_id UUID NOT NULL,
+	tag varchar(30) NOT NULL
+);
+)"_zv);
+
 	// коммитим изменения
 	work.commit();
 }
 
+pqxx::connection& Database::GetConection() {
+	return connection_;
+}
+
+
+// AUTHOR SECTION =====================================================================================
+void AuthorRepositoryImpl::Save(const domain::Author& author) {
+	// pqxx::work work{connection_};
+	work_.exec_params(
+		R"(
+INSERT INTO authors (id, name) VALUES ($1, $2)
+ON CONFLICT (id) DO UPDATE SET name=$2;
+)"_zv,
+		author.GetId().ToString(), author.GetName());
+	// work.commit();
+}
+
+std::vector<domain::Author> AuthorRepositoryImpl::Load() {
+	std::vector<domain::Author> result;
+	// pqxx::read_transaction read(connection_);
+	// for (auto [id, name] : read.query<string_view, string_view>("SELECT id, name FROM authors ORDER BY name"_zv)) {
+	// 	result.emplace_back(domain::AuthorId::FromString(std::string(id)), std::string(name));
+	// }
+	for (auto [id, name] : work_.query<string_view, string_view>("SELECT id, name FROM authors ORDER BY name"_zv)) {
+		result.emplace_back(domain::AuthorId::FromString(std::string(id)), std::string(name));
+	}
+
+	return result;
+}
+
+
+// AUTHOR SECTION =====================================================================================
+void BookRepositoryImpl::Save(const domain::Book& book) {
+
+	// pqxx::work work{connection_};
+
+	work_.exec_params(
+		R"(
+INSERT INTO books (id, author_id, title, publication_year) VALUES ($1, $2, $3, $4)
+)"_zv,
+		book.GetId().ToString(), book.GetAuthorId().ToString(), book.GetTitle(), book.GetYear());
+
+	// work.commit();
+}
+
+std::vector<domain::Book> BookRepositoryImpl::Load() {
+	std::vector<domain::Book> result;
+
+	// pqxx::read_transaction read(connection_);
+
+	for (auto [id, author_id, title, year] : work_.query<string_view, string_view, string_view, int>(
+			 "SELECT id, author_id, title, publication_year FROM books ORDER BY title"_zv)) {
+		result.emplace_back(domain::BookId::FromString(std::string(id)),
+			domain::AuthorId::FromString(std::string(author_id)), std::string(title), year);
+	}
+
+	return result;
+}
+
+std::vector<domain::Book> BookRepositoryImpl::GetAuthorBooks(const domain::AuthorId& author_id) {
+	std::vector<domain::Book> result;
+
+	// pqxx::read_transaction read(connection_);
+
+	for (auto [id, author_id, title, year] : work_.query<string_view, string_view, string_view, int>(
+			 "SELECT id, author_id, title, publication_year FROM books WHERE author_id = '" +
+			 work_.esc(author_id.ToString()) + "' ORDER BY publication_year, title;")) {
+		result.emplace_back(domain::BookId::FromString(std::string(id)),
+			domain::AuthorId::FromString(std::string(author_id)), std::string(title), year);
+	}
+
+	return result;
+}
+
+// UoW SECTION ==========================================================================
+UnitOfWorkImpl::UnitOfWorkImpl(pqxx::connection& connection)
+	: work_(connection), authors_repo(work_), books_repo(work_) {}
+
+void UnitOfWorkImpl::AddAuthor(domain::Author author) {
+	authors_repo.Save(std::move(author));
+}
+
+std::vector<domain::Author> UnitOfWorkImpl::GetAuthors() {
+	return authors_repo.Load();
+}
+
+
+void UnitOfWorkImpl::AddBook(domain::Book book) {
+	books_repo.Save(std::move(book));
+}
+
+std::vector<domain::Book> UnitOfWorkImpl::GetBooks() {
+	return books_repo.Load();
+}
+
+std::vector<domain::Book> UnitOfWorkImpl::GetAuthorBooks(const domain::AuthorId author_id) {
+	return books_repo.GetAuthorBooks(author_id);
+}
+
+void UnitOfWorkImpl::Commit() {
+	work_.commit();
+}
+
+
+UnitOfWorkFactoryImpl::UnitOfWorkFactoryImpl(pqxx::connection& connection) : connection_(connection) {}
+
+std::unique_ptr<app::UnitOfWork> UnitOfWorkFactoryImpl::GetUoW() {
+	return std::make_unique<UnitOfWorkImpl>(connection_);
+}
 
 } // namespace postgres
