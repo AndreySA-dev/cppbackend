@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <optional>
 
 
 namespace domain {
@@ -37,6 +38,7 @@ class AuthorRepository {
 public:
     virtual void Save(const Author& author) = 0;
     virtual std::vector<domain::Author> Load() = 0;
+	virtual std::optional<domain::Author> GetAuthorByName(const std::string& name) = 0;
 protected:
     ~AuthorRepository() = default;
 };

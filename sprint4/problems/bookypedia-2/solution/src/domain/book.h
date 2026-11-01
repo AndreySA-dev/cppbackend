@@ -16,8 +16,9 @@ using BookId = util::TaggedUUID<detail::BookTag>;
 
 class Book {
   public:
-	Book(BookId id, AuthorId author_id, std::string title, int year)
-		: id_(std::move(id)), author_id_(std::move(author_id)), title_(std::move(title)), year_(year) {}
+	Book(BookId id, AuthorId author_id, std::string title, int year, std::vector<std::string> tags)
+		: id_(std::move(id)), author_id_(std::move(author_id)), title_(std::move(title)), year_(year),
+		  tags_(std::move(tags)) {}
 
 	const BookId& GetId() const noexcept {
 		return id_;
@@ -35,11 +36,16 @@ class Book {
 		return year_;
 	}
 
+	const std::vector<std::string> GetTags() const {
+		return tags_;
+	}
+
   private:
 	BookId id_;
 	AuthorId author_id_;
 	std::string title_;
 	int year_;
+	std::vector<std::string> tags_;
 };
 
 class BookRepository {

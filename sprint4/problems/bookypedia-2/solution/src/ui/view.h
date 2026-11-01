@@ -19,6 +19,7 @@ struct AddBookParams {
     std::string title;
     std::string author_id;
     int publication_year = 0;
+	std::vector<std::string> tags;
 };
 
 struct AuthorInfo {
@@ -28,6 +29,12 @@ struct AuthorInfo {
 
 struct BookInfo {
     std::string title;
+    int publication_year;
+};
+
+struct BookExtraInfo {
+    std::string title;
+    std::string author_name;
     int publication_year;
 };
 
@@ -47,8 +54,11 @@ private:
     std::optional<detail::AddBookParams> GetBookParams(std::istream& cmd_input) const;
     std::optional<std::string> SelectAuthor() const;
     std::vector<detail::AuthorInfo> GetAuthors() const;
-    std::vector<detail::BookInfo> GetBooks() const;
+    std::vector<detail::BookExtraInfo> GetBooks() const;
     std::vector<detail::BookInfo> GetAuthorBooks(const std::string& author_id) const;
+    std::optional<detail::AuthorInfo> GetOrAddAuthor() const;
+    std::vector<std::string> SelectBookTags() const;
+
 
     menu::Menu& menu_;
     app::UseCases& use_cases_;

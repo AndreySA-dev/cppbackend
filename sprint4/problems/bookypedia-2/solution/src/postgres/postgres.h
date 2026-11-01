@@ -30,10 +30,11 @@ class Database {
 // AUTHOR SECTION ===========================================================
 class AuthorRepositoryImpl : public domain::AuthorRepository {
   public:
-	explicit AuthorRepositoryImpl(pqxx::work& work) : work_{work} {}
+	explicit AuthorRepositoryImpl(pqxx::work& work);
 
 	void Save(const domain::Author& author) override;
 	std::vector<domain::Author> Load() override;
+	std::optional<domain::Author> GetAuthorByName(const std::string& name) override;
 
   private:
 	pqxx::work& work_;
@@ -42,7 +43,7 @@ class AuthorRepositoryImpl : public domain::AuthorRepository {
 // BOOK SECTION ===========================================================
 class BookRepositoryImpl : public domain::BookRepository {
   public:
-	explicit BookRepositoryImpl(pqxx::work& work) : work_{work} {}
+	explicit BookRepositoryImpl(pqxx::work& work);
 
 	void Save(const domain::Book& book) override;
 	std::vector<domain::Book> Load() override;
@@ -53,21 +54,37 @@ class BookRepositoryImpl : public domain::BookRepository {
 };
 
 
+// Repository SECTION ===========================================================
+class RepositoryImpl : public domain::repo::Repository {
+  public:
+	explicit RepositoryImpl(pqxx::work& work);
+	std::vector<domain::repo::BookResponse> GetBooks() override;
+
+  private:
+	pqxx::work& work_;
+};
+
+
 // UoW SECTION ===========================================================
 class UnitOfWorkImpl : public app::UnitOfWork {
   public:
 	UnitOfWorkImpl(pqxx::connection& connection);
+
 	void AddAuthor(domain::Author author) override;
 	std::vector<domain::Author> GetAuthors() override;
-	void AddBook(domain::Book book) override;
-	std::vector<domain::Book> GetBooks() override;
 	std::vector<domain::Book> GetAuthorBooks(const domain::AuthorId author_id) override;
+	std::optional<domain::Author> GetAuthorByName(const std::string& author_name) override;
+
+	void AddBook(domain::Book book) override;
+	std::vector<domain::repo::BookResponse> GetBooks() override;
+
 	void Commit() override;
 
   private:
 	pqxx::work work_;
-	AuthorRepositoryImpl authors_repo;
-	BookRepositoryImpl books_repo;
+	AuthorRepositoryImpl authors_repo_;
+	BookRepositoryImpl books_repo_;
+	RepositoryImpl repo_;	
 };
 
 

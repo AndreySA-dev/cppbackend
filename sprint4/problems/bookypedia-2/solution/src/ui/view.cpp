@@ -1,7 +1,9 @@
 #include "view.h"
 
 #include <algorithm>
+#include <boost/algorithm/string/split.hpp>
 #include <boost/algorithm/string/trim.hpp>
+#include <boost/algorithm/string/trim_all.hpp>
 #include <cassert>
 #include <iostream>
 
@@ -22,6 +24,11 @@ std::ostream& operator<<(std::ostream& out, const AuthorInfo& author) {
 
 std::ostream& operator<<(std::ostream& out, const BookInfo& book) {
 	out << book.title << ", " << book.publication_year;
+	return out;
+}
+
+std::ostream& operator<<(std::ostream& out, const BookExtraInfo& book) {
+	out << book.title << " by " << book.author_name << ", " << book.publication_year;
 	return out;
 }
 
@@ -55,16 +62,18 @@ bool View::AddAuthor(std::istream& cmd_input) const { // <------- MENU ACTION
 		boost::algorithm::trim(name);
 		app::UseCasesGuard guard(use_cases_);
 		use_cases_.AddAuthor(std::move(name));
+		use_cases_.End();
 	} catch (const std::exception&) { output_ << "Failed to add author"sv << std::endl; }
 	return true;
 }
 
-bool View::AddBook(std::istream& cmd_input) const {   // <------- MENU ACTION
+bool View::AddBook(std::istream& cmd_input) const { // <------- MENU ACTION
 	try {
 		app::UseCasesGuard guard(use_cases_);
 		if (auto params = GetBookParams(cmd_input)) {
-			use_cases_.AddBook(params->author_id, params->title, params->publication_year);
+			use_cases_.AddBook(params->author_id, params->title, params->publication_year, std::move(params->tags));
 		}
+		use_cases_.End();
 	} catch (const std::exception& e) {
 		output_ << "Failed to add book"sv << std::endl;
 		std::cerr << e.what() << std::endl;
@@ -72,19 +81,21 @@ bool View::AddBook(std::istream& cmd_input) const {   // <------- MENU ACTION
 	return true;
 }
 
-bool View::ShowAuthors() const {  // <------- MENU ACTION
+bool View::ShowAuthors() const { // <------- MENU ACTION
 	app::UseCasesGuard guard(use_cases_);
 	PrintVector(output_, GetAuthors());
+	use_cases_.End();
 	return true;
 }
 
-bool View::ShowBooks() const {  // <------- MENU ACTION
+bool View::ShowBooks() const { // <------- MENU ACTION
 	app::UseCasesGuard guard(use_cases_);
 	PrintVector(output_, GetBooks());
+	use_cases_.End();
 	return true;
 }
 
-bool View::ShowAuthorBooks() const {  // <------- MENU ACTION
+bool View::ShowAuthorBooks() const { // <------- MENU ACTION
 	// TODO: handle error
 	try {
 		app::UseCasesGuard guard(use_cases_);
@@ -93,7 +104,6 @@ bool View::ShowAuthorBooks() const {  // <------- MENU ACTION
 		}
 	} catch (const std::exception& e) {
 		throw std::runtime_error("Failed to Show Books");
-		// std::cerr << e.what() << std::endl;
 	}
 	return true;
 }
@@ -105,20 +115,15 @@ std::optional<detail::AddBookParams> View::GetBookParams(std::istream& cmd_input
 	std::getline(cmd_input, params.title);
 	boost::algorithm::trim(params.title);
 
-	// output_ << "Enter author name or empty line to select from list:" << std::endl;
-	// std::optional<string> author_id = std::nullopt;
-	// std::string author_name;
-	// if (getline(input_, author_name) && (author_id = )) {
-		
-	// }
-
-	auto author_id = SelectAuthor();
-	if (!author_id.has_value())
-		return std::nullopt;
-	else {
-		params.author_id = author_id.value();
+	auto author = GetOrAddAuthor();
+	if (!author) {
+		return nullopt;
+	} else {
+		params.author_id = author->id;
+		params.tags = SelectBookTags();
 		return params;
 	}
+
 }
 
 std::optional<std::string> View::SelectAuthor() const {
@@ -153,12 +158,10 @@ std::vector<detail::AuthorInfo> View::GetAuthors() const {
 	return dst_autors;
 }
 
-std::vector<detail::BookInfo> View::GetBooks() const {
-	std::vector<detail::BookInfo> dst_books;
+std::vector<detail::BookExtraInfo> View::GetBooks() const {
+	std::vector<detail::BookExtraInfo> dst_books;
 	for (auto& book : use_cases_.GetBooks()) {
-		// dst_books.emplace_back(book.GetId().ToString(), book.GetAuthorId().ToString(), book.GetTitle(),
-		// book.GetYear());
-		dst_books.emplace_back(book.GetTitle(), book.GetYear());
+		dst_books.emplace_back(book.title, book.author_name, book.year);
 	}
 	return dst_books;
 }
@@ -169,6 +172,50 @@ std::vector<detail::BookInfo> View::GetAuthorBooks(const std::string& author_id)
 	std::transform(author_books.cbegin(), author_books.cend(), std::back_inserter(books_info),
 		[](auto& book) { return detail::BookInfo{book.GetTitle(), book.GetYear()}; });
 	return books_info;
+}
+
+std::optional<detail::AuthorInfo> View::GetOrAddAuthor() const {
+	optional<string> author_id{nullopt};
+
+	string name;
+	output_ << "Enter author name or empty line to select from list:" << std::endl;
+	getline(input_, name);
+	boost::algorithm::trim(name);
+	if (name.empty()) {
+		author_id = SelectAuthor();
+		if (author_id)
+			return detail::AuthorInfo{*author_id, ""};
+		else {
+			return std::nullopt;
+		}
+	}
+	auto author = use_cases_.GetAuthorByName(name);
+	if (author) {
+		return detail::AuthorInfo{author->GetId().ToString(), author->GetName()};
+	}
+
+	string answer;
+	output_ << "No author found. Do you want to add " + name + " (y/n)?" << std::endl;
+	getline(input_, answer);
+	if (!(answer == "y" || answer == "Y")) {
+		return nullopt;
+	}
+
+	author = use_cases_.AddAuthor(name);
+	return detail::AuthorInfo{author->GetId().ToString(), author->GetName()};
+}
+
+std::vector<std::string> View::SelectBookTags() const {
+	std::vector<std::string> result;
+	string line;
+	output_ << "Enter tags (comma separated):" << std::endl;
+	getline(input_, line);
+	boost::algorithm::split(result, line, boost::is_any_of(","), boost::token_compress_on);
+	for (auto& tag : result) {
+		boost::algorithm::trim_all(tag);
+	}
+	std::erase_if(result, [](const std::string& s) { return s.empty(); });
+	return result;
 }
 
 } // namespace ui

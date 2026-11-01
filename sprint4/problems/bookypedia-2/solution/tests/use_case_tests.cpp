@@ -5,38 +5,38 @@
 
 namespace {
 
-struct MockAuthorRepository : domain::AuthorRepository {
-    std::vector<domain::Author> saved_authors;
+// struct MockAuthorRepository : domain::AuthorRepository {
+//     std::vector<domain::Author> saved_authors;
 
-    void Save(const domain::Author& author) override {
-        saved_authors.emplace_back(author);
-    }
-    std::vector<domain::Author> Load() override {
-        return std::vector<domain::Author>{};
-    }
-};
+//     void Save(const domain::Author& author) override {
+//         saved_authors.emplace_back(author);
+//     }
+//     std::vector<domain::Author> Load() override {
+//         return std::vector<domain::Author>{};
+//     }
+// };
 
-struct MockBookRepository : domain::BookRepository {
-    std::vector<domain::Book> saved_books;
+// struct MockBookRepository : domain::BookRepository {
+//     std::vector<domain::Book> saved_books;
 
-    void Save(const domain::Book& book) override {
-        saved_books.emplace_back(book);
-    }
+//     void Save(const domain::Book& book) override {
+//         saved_books.emplace_back(book);
+//     }
 	
-    std::vector<domain::Book> Load() override {
-        return std::vector<domain::Book>{};
-    }
-	std::vector<domain::Book> GetAuthorBooks(const domain::AuthorId& author_id) override {
-		(void)author_id;
-		return std::vector<domain::Book>{};
+//     std::vector<domain::Book> Load() override {
+//         return std::vector<domain::Book>{};
+//     }
+// 	std::vector<domain::Book> GetAuthorBooks(const domain::AuthorId& author_id) override {
+// 		(void)author_id;
+// 		return std::vector<domain::Book>{};
 
-	}
-};
+// 	}
+// };
 
-struct Fixture {
-    MockAuthorRepository authors;
-    MockBookRepository books;
-};
+// struct Fixture {
+//     MockAuthorRepository authors;
+//     MockBookRepository books;
+// };
 
 }  // namespace
 

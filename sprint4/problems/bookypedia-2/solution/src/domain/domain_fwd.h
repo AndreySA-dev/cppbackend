@@ -7,6 +7,13 @@ class AuthorRepository;
 
 class Book;
 class BooksRepository;
-// class AuthorId;
+
+namespace repo {
+class Repository;
+}
+
+struct BookResponse;
+
+
 
 }  // namespace domain

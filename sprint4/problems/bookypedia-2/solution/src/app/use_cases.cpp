@@ -7,7 +7,7 @@ UseCasesGuard::UseCasesGuard(UseCases& use_cases) : use_cases_(use_cases) {
 }
 
 UseCasesGuard::~UseCasesGuard() {
-	use_cases_.Stop();
+	use_cases_.Interrupt();
 }
 
 } // namespace app
