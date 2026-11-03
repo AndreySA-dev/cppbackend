@@ -16,9 +16,14 @@ class UseCasesImpl : public UseCases {
 	std::vector<domain::Author> GetAuthors() override;
 	std::vector<domain::Book> GetAuthorBooks(const std::string& author_id) override;
 	std::optional<domain::Author> GetAuthorByName(const std::string& author_name) override;
+	void DeleteAuthor(const std::string& id) override;
+	void EditAuthor(const std::string& id, const std::string& new_name) override;
+	void DeleteBook(const std::string& book_id) override;
 
 	void AddBook(const std::string& author_id, const std::string& title, int year, std::vector<std::string> tags) override;
-	std::vector<domain::repo::BookResponse> GetBooks() override;
+	std::vector<domain::repo::BookResponse> GetBooks(const std::optional<std::string> book_id, const std::optional<std::string> book_name = std::nullopt) override;
+	// std::vector<domain::Book> GetBookByTitle(const std::string& title) override;
+	std::vector<domain::repo::BookResponseExtra> GetBooksExtraInfo(const std::optional<std::string> book_id, const std::optional<std::string> book_name = std::nullopt) override;
 
 
 	void Start() override;

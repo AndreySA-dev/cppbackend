@@ -115,7 +115,7 @@ std::vector<domain::Book> BookRepositoryImpl::Load() {
 
 std::vector<domain::Book> BookRepositoryImpl::GetAuthorBooks(const domain::AuthorId& author_id) {
 	std::vector<domain::Book> result;
-	auto s = author_id.ToString();
+	// auto s = author_id.ToString();
 	for (auto [id, author_id, title, year] : work_.query<string_view, string_view, string_view, int>(
 			 "SELECT id, author_id, title, publication_year FROM books WHERE author_id = '" +
 			 work_.esc(author_id.ToString()) + "' ORDER BY publication_year, title;")) {
@@ -124,6 +124,88 @@ std::vector<domain::Book> BookRepositoryImpl::GetAuthorBooks(const domain::Autho
 	}
 
 	return result;
+}
+
+// std::vector<domain::Book> BookRepositoryImpl::GetBookByTitle(const std::string& title) {
+// 	std::vector<domain::Book> result;
+// 	for (auto [id, author_id, title, year] : work_.query<string_view, string_view, string_view, int>(
+// 			 "SELECT id, author_id, title, publication_year FROM books WHERE author_id = '" +
+// 			 work_.esc(author_id.ToString()) + "' ORDER BY publication_year, title;")) {
+// 		result.emplace_back(domain::BookId::FromString(std::string(id)),
+// 			domain::AuthorId::FromString(std::string(author_id)), std::string(title), year, std::vector<std::string>{});
+// 	}
+
+// 	return result;
+// }
+
+
+// REPO SECTION ==========================================================================
+RepositoryImpl::RepositoryImpl(pqxx::work& work) : work_{work} {}
+
+std::vector<domain::repo::BookResponse> RepositoryImpl::GetBooks(
+	const std::optional<std::string> book_id, const std::optional<std::string> book_name) {
+	std::vector<domain::repo::BookResponse> result;
+	for (auto [title, year, author_name] : work_.query<string_view, int, string_view>(
+			 "SELECT B.title, B.publication_year, A.name FROM books as B "_zv
+			 "LEFT JOIN authors as A ON B.author_id = A.id ORDER BY B.title, A.name, B.publication_year"_zv)) {
+		result.emplace_back(std::string(title), std::string(author_name), year);
+	}
+
+	return result;
+}
+
+std::vector<domain::repo::BookResponseExtra> RepositoryImpl::GetBooksExtraInfo(
+	const std::optional<std::string> book_id, const std::optional<std::string> book_name) {
+
+	std::vector<domain::repo::BookResponseExtra> result;
+	std::string query;
+
+	// clang-format off
+	if (book_id) {
+		query = "SELECT b.id, b.title, b.publication_year, a.name, t.tags FROM books AS b "
+				"LEFT JOIN authors AS a ON b.author_id = a.id "
+				"LEFT JOIN (SELECT book_id, STRING_AGG(tag, ', ' ORDER BY tag) AS tags FROM book_tags GROUP BY "
+				"book_id) AS t ON b.id = t.book_id "
+				"WHERE b.id = '" + work_.esc(*book_id) + "' "
+				"ORDER BY b.title, a.name, b.publication_year ";
+	} else if (book_name) {
+		query = "SELECT b.id, b.title, b.publication_year, a.name, t.tags FROM books AS b "
+				"LEFT JOIN authors AS a ON b.author_id = a.id "
+				"LEFT JOIN (SELECT book_id, STRING_AGG(tag, ', ' ORDER BY tag) AS tags FROM book_tags GROUP BY "
+				"book_id) AS t ON b.id = t.book_id "
+				"WHERE b.title = '" + work_.esc(*book_name) + "' "
+				"ORDER BY b.title, a.name, b.publication_year ";
+	} else {
+		query = "SELECT b.id, b.title, b.publication_year, a.name, t.tags FROM books AS b "
+				"LEFT JOIN authors AS a ON b.author_id = a.id "
+				"LEFT JOIN (SELECT book_id, STRING_AGG(tag, ', ' ORDER BY tag) AS tags FROM book_tags GROUP BY "
+				"book_id) AS t ON b.id = t.book_id "
+				"ORDER BY b.title, a.name, b.publication_year ";
+	}
+	// clang-format on
+
+	for (auto [book_id, title, year, author_name, tags] :
+		work_.query<string_view, string_view, int, string_view, std::optional<string>>(query)) {
+		result.emplace_back(
+			std::string(book_id), std::string(title), std::string(author_name), year, std::string(tags.value_or("")));
+	}
+	return result;
+}
+
+void RepositoryImpl::DeleteBook(const std::string& book_id) {
+	work_.exec("DELETE FROM book_tags WHERE book_id = '" + work_.esc(book_id) + "';");
+	work_.exec("DELETE FROM books WHERE id = '" + work_.esc(book_id) + "';");
+}
+
+void RepositoryImpl::DeleteAuthor(const std::string& id) {
+	work_.exec(
+		"DELETE FROM book_tags WHERE book_id IN (SELECT id FROM books WHERE author_id = '" + work_.esc(id) + "');");
+	work_.exec("DELETE FROM books WHERE author_id = '" + work_.esc(id) + "';");
+	work_.exec("DELETE FROM authors WHERE id = '" + work_.esc(id) + "';");
+}
+
+void RepositoryImpl::EditAuthor(const std::string& id, const std::string& new_name) {
+	work_.exec("UPDATE authors SET name = '" + work_.esc(new_name) + "' WHERE id = '" + work_.esc(id) + "';");
 }
 
 // UoW SECTION ==========================================================================
@@ -143,16 +225,38 @@ void UnitOfWorkImpl::AddBook(domain::Book book) {
 	books_repo_.Save(std::move(book));
 }
 
-std::vector<domain::repo::BookResponse> UnitOfWorkImpl::GetBooks() {
-	return repo_.GetBooks();
+std::vector<domain::repo::BookResponse> UnitOfWorkImpl::GetBooks(
+	const std::optional<std::string> book_id, const std::optional<std::string> book_name) {
+	return repo_.GetBooks(book_id, book_name);
 }
 
 std::vector<domain::Book> UnitOfWorkImpl::GetAuthorBooks(const domain::AuthorId author_id) {
 	return books_repo_.GetAuthorBooks(author_id);
 }
 
+// std::vector<domain::Book> UnitOfWorkImpl::GetBookByTitle(const std::string& title) {
+// 	return books_repo_.GtBookByTitle(title);
+// }
+
+std::vector<domain::repo::BookResponseExtra> UnitOfWorkImpl::GetBooksExtraInfo(
+	const std::optional<std::string> book_id, const std::optional<std::string> book_name) {
+	return repo_.GetBooksExtraInfo(book_id, book_name);
+}
+
 std::optional<domain::Author> UnitOfWorkImpl::GetAuthorByName(const std::string& name) {
 	return authors_repo_.GetAuthorByName(name);
+}
+
+void UnitOfWorkImpl::DeleteAuthor(const std::string& id) {
+	repo_.DeleteAuthor(id);
+}
+
+void UnitOfWorkImpl::EditAuthor(const std::string& id, const std::string& new_name) {
+	repo_.EditAuthor(id, new_name);
+}
+
+void UnitOfWorkImpl::DeleteBook(const std::string& book_id) {
+	repo_.DeleteBook(book_id);
 }
 
 void UnitOfWorkImpl::Commit() {
@@ -166,17 +270,5 @@ std::unique_ptr<app::UnitOfWork> UnitOfWorkFactoryImpl::GetUoW() {
 	return std::make_unique<UnitOfWorkImpl>(connection_);
 }
 
-RepositoryImpl::RepositoryImpl(pqxx::work& work) : work_{work} {}
-
-std::vector<domain::repo::BookResponse> RepositoryImpl::GetBooks() {
-	std::vector<domain::repo::BookResponse> result;
-	for (auto [title, year, author_name] : work_.query<string_view, int, string_view>(
-			 "SELECT B.title, B.publication_year, A.name FROM books as B "
-			 "LEFT JOIN authors as A ON B.author_id = A.id ORDER BY B.title, A.name, B.year"_zv)) {
-		result.emplace_back(std::string(title), std::string(author_name), year);
-	}
-
-	return result;
-}
 
 } // namespace postgres

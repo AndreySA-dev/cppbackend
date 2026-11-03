@@ -48,6 +48,7 @@ class BookRepositoryImpl : public domain::BookRepository {
 	void Save(const domain::Book& book) override;
 	std::vector<domain::Book> Load() override;
 	std::vector<domain::Book> GetAuthorBooks(const domain::AuthorId& author_id) override;
+	// std::vector<domain::Book> GetBookByTitle(const std::string& title) override;
 
   private:
 	pqxx::work& work_;
@@ -58,7 +59,13 @@ class BookRepositoryImpl : public domain::BookRepository {
 class RepositoryImpl : public domain::repo::Repository {
   public:
 	explicit RepositoryImpl(pqxx::work& work);
-	std::vector<domain::repo::BookResponse> GetBooks() override;
+	std::vector<domain::repo::BookResponse> GetBooks(
+		const std::optional<std::string> book_id, const std::optional<std::string> book_name = std::nullopt) override;
+	std::vector<domain::repo::BookResponseExtra> GetBooksExtraInfo(
+		const std::optional<std::string> book_id, const std::optional<std::string> book_name = std::nullopt) override;
+	void DeleteBook(const std::string& book_id) override;
+	void DeleteAuthor(const std::string& id) override;
+	void EditAuthor(const std::string& id, const std::string& new_name) override;
 
   private:
 	pqxx::work& work_;
@@ -74,9 +81,16 @@ class UnitOfWorkImpl : public app::UnitOfWork {
 	std::vector<domain::Author> GetAuthors() override;
 	std::vector<domain::Book> GetAuthorBooks(const domain::AuthorId author_id) override;
 	std::optional<domain::Author> GetAuthorByName(const std::string& author_name) override;
+	void DeleteAuthor(const std::string& id) override;
+	void EditAuthor(const std::string& id, const std::string& new_name) override;
+	void DeleteBook(const std::string& book_id) override;
 
 	void AddBook(domain::Book book) override;
-	std::vector<domain::repo::BookResponse> GetBooks() override;
+	std::vector<domain::repo::BookResponse> GetBooks(
+		const std::optional<std::string> book_id, const std::optional<std::string> book_name = std::nullopt) override;
+	// std::vector<domain::Book> GetBookByTitle(const std::string& title) override;
+	std::vector<domain::repo::BookResponseExtra> GetBooksExtraInfo(
+		const std::optional<std::string> book_id, const std::optional<std::string> book_name = std::nullopt) override;
 
 	void Commit() override;
 
@@ -84,7 +98,7 @@ class UnitOfWorkImpl : public app::UnitOfWork {
 	pqxx::work work_;
 	AuthorRepositoryImpl authors_repo_;
 	BookRepositoryImpl books_repo_;
-	RepositoryImpl repo_;	
+	RepositoryImpl repo_;
 };
 
 
@@ -93,7 +107,7 @@ class UnitOfWorkFactoryImpl : public app::UnitOfWorkFactory {
 	UnitOfWorkFactoryImpl(pqxx::connection& connection);
 	std::unique_ptr<app::UnitOfWork> GetUoW() override;
 
-	
+
   private:
 	pqxx::connection& connection_;
 };

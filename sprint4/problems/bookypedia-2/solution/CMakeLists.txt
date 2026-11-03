@@ -20,6 +20,8 @@ add_library(libbookypedia STATIC
 	src/app/use_cases_impl.h
 	src/app/unit_of_work.h
 	src/app/unit_of_work.cpp
+	src/domain/repository.cpp
+	src/domain/repository.h
 	src/domain/author.cpp
 	src/domain/author.h
 	src/domain/book.h
