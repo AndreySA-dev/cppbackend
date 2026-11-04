@@ -142,9 +142,9 @@ std::vector<domain::Book> BookRepositoryImpl::GetAuthorBooks(const domain::Autho
 // REPO SECTION ==========================================================================
 RepositoryImpl::RepositoryImpl(pqxx::work& work) : work_{work} {}
 
-std::vector<domain::repo::BookResponse> RepositoryImpl::GetBooks(
+std::vector<domain::repo::BookInfo> RepositoryImpl::GetBooks(
 	const std::optional<std::string> book_id, const std::optional<std::string> book_name) {
-	std::vector<domain::repo::BookResponse> result;
+	std::vector<domain::repo::BookInfo> result;
 	for (auto [title, year, author_name] : work_.query<string_view, int, string_view>(
 			 "SELECT B.title, B.publication_year, A.name FROM books as B "_zv
 			 "LEFT JOIN authors as A ON B.author_id = A.id ORDER BY B.title, A.name, B.publication_year"_zv)) {
@@ -154,10 +154,10 @@ std::vector<domain::repo::BookResponse> RepositoryImpl::GetBooks(
 	return result;
 }
 
-std::vector<domain::repo::BookResponseExtra> RepositoryImpl::GetBooksExtraInfo(
+std::vector<domain::repo::BookExtraInfo> RepositoryImpl::GetBooksExtraInfo(
 	const std::optional<std::string> book_id, const std::optional<std::string> book_name) {
 
-	std::vector<domain::repo::BookResponseExtra> result;
+	std::vector<domain::repo::BookExtraInfo> result;
 	std::string query;
 
 	// clang-format off
@@ -208,6 +208,17 @@ void RepositoryImpl::EditAuthor(const std::string& id, const std::string& new_na
 	work_.exec("UPDATE authors SET name = '" + work_.esc(new_name) + "' WHERE id = '" + work_.esc(id) + "';");
 }
 
+void RepositoryImpl::EditBook(const std::string& book_id, const std::string& title, int year,
+	const std::optional<std::vector<std::string>>& tags) {
+	if (tags) {
+		work_.exec_params("DELETE FROM book_tags WHERE book_id = $1;", book_id);
+		for (auto& tag : *tags) {
+			work_.exec_params("INSERT INTO book_tags (book_id, tag) VALUES ($1, $2);"_zv, book_id, tag);
+		}
+	}
+	work_.exec_params("UPDATE books SET title = $1, publication_year = $2 WHERE id = $3", title, year, book_id);
+}
+
 // UoW SECTION ==========================================================================
 UnitOfWorkImpl::UnitOfWorkImpl(pqxx::connection& connection)
 	: work_(connection), authors_repo_(work_), books_repo_(work_), repo_(work_) {}
@@ -225,7 +236,7 @@ void UnitOfWorkImpl::AddBook(domain::Book book) {
 	books_repo_.Save(std::move(book));
 }
 
-std::vector<domain::repo::BookResponse> UnitOfWorkImpl::GetBooks(
+std::vector<domain::repo::BookInfo> UnitOfWorkImpl::GetBooks(
 	const std::optional<std::string> book_id, const std::optional<std::string> book_name) {
 	return repo_.GetBooks(book_id, book_name);
 }
@@ -238,7 +249,7 @@ std::vector<domain::Book> UnitOfWorkImpl::GetAuthorBooks(const domain::AuthorId 
 // 	return books_repo_.GtBookByTitle(title);
 // }
 
-std::vector<domain::repo::BookResponseExtra> UnitOfWorkImpl::GetBooksExtraInfo(
+std::vector<domain::repo::BookExtraInfo> UnitOfWorkImpl::GetBooksExtraInfo(
 	const std::optional<std::string> book_id, const std::optional<std::string> book_name) {
 	return repo_.GetBooksExtraInfo(book_id, book_name);
 }
@@ -257,6 +268,12 @@ void UnitOfWorkImpl::EditAuthor(const std::string& id, const std::string& new_na
 
 void UnitOfWorkImpl::DeleteBook(const std::string& book_id) {
 	repo_.DeleteBook(book_id);
+}
+
+void UnitOfWorkImpl::EditBook(const std::string& book_id, const std::string& title, int year,
+	const std::optional<std::vector<std::string>>& tags) {
+
+	repo_.EditBook(book_id, title, year, tags);
 }
 
 void UnitOfWorkImpl::Commit() {

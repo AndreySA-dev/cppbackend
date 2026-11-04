@@ -59,13 +59,15 @@ class BookRepositoryImpl : public domain::BookRepository {
 class RepositoryImpl : public domain::repo::Repository {
   public:
 	explicit RepositoryImpl(pqxx::work& work);
-	std::vector<domain::repo::BookResponse> GetBooks(
+	std::vector<domain::repo::BookInfo> GetBooks(
 		const std::optional<std::string> book_id, const std::optional<std::string> book_name = std::nullopt) override;
-	std::vector<domain::repo::BookResponseExtra> GetBooksExtraInfo(
+	std::vector<domain::repo::BookExtraInfo> GetBooksExtraInfo(
 		const std::optional<std::string> book_id, const std::optional<std::string> book_name = std::nullopt) override;
 	void DeleteBook(const std::string& book_id) override;
 	void DeleteAuthor(const std::string& id) override;
 	void EditAuthor(const std::string& id, const std::string& new_name) override;
+	void EditBook(
+		const std::string& book_id, const std::string& title, int year, const std::optional<std::vector<std::string>>& tags) override;
 
   private:
 	pqxx::work& work_;
@@ -84,12 +86,14 @@ class UnitOfWorkImpl : public app::UnitOfWork {
 	void DeleteAuthor(const std::string& id) override;
 	void EditAuthor(const std::string& id, const std::string& new_name) override;
 	void DeleteBook(const std::string& book_id) override;
+	void EditBook(
+		const std::string& book_id, const std::string& title, int year, const std::optional<std::vector<std::string>>& tags) override;
 
 	void AddBook(domain::Book book) override;
-	std::vector<domain::repo::BookResponse> GetBooks(
+	std::vector<domain::repo::BookInfo> GetBooks(
 		const std::optional<std::string> book_id, const std::optional<std::string> book_name = std::nullopt) override;
 	// std::vector<domain::Book> GetBookByTitle(const std::string& title) override;
-	std::vector<domain::repo::BookResponseExtra> GetBooksExtraInfo(
+	std::vector<domain::repo::BookExtraInfo> GetBooksExtraInfo(
 		const std::optional<std::string> book_id, const std::optional<std::string> book_name = std::nullopt) override;
 
 	void Commit() override;

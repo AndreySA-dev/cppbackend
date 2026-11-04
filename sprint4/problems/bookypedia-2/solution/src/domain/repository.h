@@ -7,13 +7,13 @@ namespace domain {
 
 namespace repo {
 
-struct BookResponse {
+struct BookInfo {
 	std::string title;
 	std::string author_name;
 	int year;
 };
 
-struct BookResponseExtra {
+struct BookExtraInfo {
 	std::string book_id;
 	std::string title;
 	std::string author_name;
@@ -29,11 +29,12 @@ struct BookResponseExtra {
 
 class Repository {
   public:
-	virtual std::vector<BookResponse> GetBooks(
+	virtual std::vector<BookInfo> GetBooks(
 		const std::optional<std::string> book_id, const std::optional<std::string> book_name = std::nullopt) = 0;
-	virtual std::vector<BookResponseExtra> GetBooksExtraInfo(
+	virtual std::vector<BookExtraInfo> GetBooksExtraInfo(
 		const std::optional<std::string> book_id, const std::optional<std::string> book_name = std::nullopt) = 0;
 	virtual void DeleteBook(const std::string& book_id) = 0;
+	virtual void EditBook(const std::string& book_id, const std::string& title, int year, const std::optional<std::vector<std::string>>& tags) = 0;
 
 	virtual void DeleteAuthor(const std::string& id) = 0;
 	virtual void EditAuthor(const std::string& id, const std::string& new_name) = 0;

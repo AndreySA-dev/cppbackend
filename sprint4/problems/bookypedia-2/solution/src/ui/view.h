@@ -41,7 +41,7 @@ struct BookExtraInfo {
 	explicit BookExtraInfo(std::string title, std::string author_name, int year)
 		: title(std::move(title)), author_name(std::move(author_name)), publication_year(year) {}
 
-	explicit BookExtraInfo(domain::repo::BookResponseExtra response)
+	explicit BookExtraInfo(domain::repo::BookExtraInfo response)
 		: title(response.title), author_name(response.author_name), publication_year(response.year) {}
 };
 
@@ -69,16 +69,17 @@ class View {
 	bool ShowBooks() const;
 	bool ShowBook(std::istream& cmd_input) const;
 	bool DeleteBook(std::istream& cmd_input) const;
+	bool EditBook(std::istream& cmd_input) const;
 
 	std::vector<detail::AuthorInfo> GetAuthors() const;
 	std::optional<std::string> SelectAuthor() const;
 	std::optional<std::string> EnterOrSelectAuthor(std::istream& cmd_input) const;
 	std::vector<detail::BookInfo> GetAuthorBooks(const std::string& author_id) const;
-	std::optional<detail::AuthorInfo> GetOrAddAuthor() const;
+	std::optional<detail::AuthorInfo> ReadOrAddAuthor() const;
 
 	std::vector<detail::BookExtraInfo> GetBooks() const;
-	std::optional<detail::AddBookParams> GetBookParams(std::istream& cmd_input) const;
-	std::vector<std::string> SelectBookTags() const;
+	std::optional<detail::AddBookParams> ReadBookParams(std::istream& cmd_input) const;
+	std::vector<std::string> ReadBookTags() const;
 	std::optional<std::string> SelectBook(std::istream& cmd_input) const;
 
 	menu::Menu& menu_;

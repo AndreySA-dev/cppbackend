@@ -63,6 +63,14 @@ void UseCasesImpl::DeleteBook(const std::string& book_id) {
 	uow_->DeleteBook(book_id);
 }
 
+void UseCasesImpl::EditBook(
+	const std::string& book_id, const std::string& title, int year, const std::optional<std::vector<std::string>>& tags) {
+		if (!uow_) {
+			throw std::logic_error("Error. Transaction not started.");
+		}
+		uow_->EditBook(book_id, title, year, tags);
+}
+
 void UseCasesImpl::AddBook(
 	const std::string& author_id, const std::string& title, int year, std::vector<std::string> tags) {
 	if (!uow_) {
@@ -71,7 +79,7 @@ void UseCasesImpl::AddBook(
 	uow_->AddBook({BookId::New(), AuthorId::FromString(author_id), title, year, std::move(tags)});
 }
 
-std::vector<domain::repo::BookResponse> UseCasesImpl::GetBooks(
+std::vector<domain::repo::BookInfo> UseCasesImpl::GetBooks(
 	const std::optional<std::string> book_id, const std::optional<std::string> book_name) {
 	if (!uow_) {
 		throw std::logic_error("Error. Transaction not started.");
@@ -86,7 +94,7 @@ std::vector<domain::repo::BookResponse> UseCasesImpl::GetBooks(
 // 	return uow_->GetBookByTitle(title);
 // }
 
-std::vector<domain::repo::BookResponseExtra> UseCasesImpl::GetBooksExtraInfo(
+std::vector<domain::repo::BookExtraInfo> UseCasesImpl::GetBooksExtraInfo(
 	const std::optional<std::string> book_id, const std::optional<std::string> book_name) {
 	if (!uow_) {
 		throw std::logic_error("Error. Transaction not started.");
