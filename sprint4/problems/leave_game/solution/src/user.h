@@ -1,12 +1,12 @@
 #pragma once
 
+#include "model.h"
 #include "tagged.h"
 #include "token.h"
-#include "model.h"
 
-#include <string>
 #include <deque>
 #include <list>
+#include <string>
 #include <string_view>
 #include <unordered_map>
 #include <utility>
@@ -47,10 +47,9 @@ class User {
 class Users {
 
   public:
-
-	using iterator = std::deque<User>::iterator;
-
-	using const_iterator = std::deque<User>::const_iterator;
+	using Container = std::list<User>;
+	using iterator = Container::iterator;
+	using const_iterator = Container::const_iterator;
 
 	Users() = default;
 
@@ -60,7 +59,7 @@ class Users {
 	const User* GetUser(User::Id id) const;
 
 	size_t GetSize() const;
-	
+
 	iterator begin();
 	const const_iterator begin() const;
 	const const_iterator cbegin() const;
@@ -73,12 +72,15 @@ class Users {
 	Users(const Users&) = delete;
 	Users& operator=(const Users&) = delete;
 
-	std::deque<User> users_;
-	std::unordered_map<User::Id, size_t, User::IdHasher> user_id_to_index_;
-	std::unordered_map<std::string_view, User::Id> user_name_to_index_;
+	// std::deque<User> users_;
+	Container users_;
+	// std::unordered_map<User::Id, size_t, User::IdHasher> user_id_to_index_;
+	// std::unordered_map<std::string_view, User::Id> user_name_to_index_;
+	std::unordered_map<User::Id, Container::iterator, User::IdHasher> user_id_to_it_;
+	std::unordered_map<std::string_view, Container::iterator> user_name_to_it_;
 
 	token::TokenHandler generator_;
 };
 
 
-} // namespace player
+} // namespace user

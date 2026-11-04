@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#include <list>
 
 namespace model {
 
@@ -141,7 +142,7 @@ class Dog {
 	using Id = util::Tagged<size_t, Dog>;
 	using Duration = std::chrono::steady_clock::duration;
 	static inline const Id noid{std::numeric_limits<Id::ValueType>::max()};
-
+	
 	Dog(Id id, size_t bag_capacity);
 	Id GetId() const;
 	Point GetPosition() const;
@@ -223,7 +224,9 @@ class Map {
 	using Roads = std::vector<Road>;
 	using Buildings = std::vector<Building>;
 	using Offices = std::vector<Office>;
-	using Dogs = std::vector<Dog>;
+	// using Dogs = std::vector<Dog>;
+	// using Dogs = std::unordered_map<Dog::Id, Dog, util::TaggedHasher<Dog::Id>>;
+	using Dogs = std::list<Dog>;
 	using LootTypes = std::vector<LootType>;
 	using Loots = std::vector<Loot>;
 
@@ -275,7 +278,8 @@ class Map {
 
   private:
 	using OfficeIdToIndex = std::unordered_map<Office::Id, size_t, util::TaggedHasher<Office::Id>>;
-	using DogIdToIndex = std::unordered_map<Dog::Id, size_t, util::TaggedHasher<Dog::Id>>;
+	// using DogIdToIndex = std::unordered_map<Dog::Id, size_t, util::TaggedHasher<Dog::Id>>;
+	using DogIdToIter = std::unordered_map<Dog::Id, Dogs::iterator, util::TaggedHasher<Dog::Id>>;
 	using DogToRoadIdx = std::unordered_map<Dog*, const Road*>;
 	using LootTypeNameToIdx = std::unordered_map<std::string, size_t>;
 
@@ -293,7 +297,8 @@ class Map {
 	OfficeIdToIndex warehouse_id_to_index_;
 	Offices offices_;
 
-	DogIdToIndex dog_id_to_idx_;
+	// DogIdToIndex dog_id_to_idx_;
+	DogIdToIter dog_id_to_it_;
 	DogToRoadIdx dog_to_road_idx_;
 	Dogs dogs_;
 	std::optional<Speed> dog_default_speed_ = std::nullopt;

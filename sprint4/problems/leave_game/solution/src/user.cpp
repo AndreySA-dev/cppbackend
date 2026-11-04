@@ -87,37 +87,43 @@ User* Users::AddUser(std::string_view name) {
 }
 
 User* Users::AddUser(user::User&& user) {
-
-	const size_t idx = users_.size();
-	decltype(user_id_to_index_.emplace()) add_id_idx_result;
-	decltype(user_name_to_index_.emplace()) add_name_idx_result;
+	// const size_t idx = users_.size();
+	// decltype(user_id_to_index_.emplace()) add_id_idx_result;
+	// decltype(user_name_to_index_.emplace()) add_name_idx_result;
+	decltype(user_id_to_it_.emplace()) add_id_it_result;
+	decltype(user_name_to_it_.emplace()) add_name_it_result;
 	
 	try {
-		// auto new_player_it = users_.insert( users_.end(), std::move(user));
-		auto& new_player = users_.emplace_back(std::move(user));
-		add_id_idx_result = user_id_to_index_.emplace(new_player.GetId(), idx);
-		if (!add_id_idx_result.second) {
-			throw std::logic_error("Add user error: User with id " + std::to_string(*new_player.GetId()) + "already exit.");
+		auto user_id = user.GetId();
+		// auto& new_player = users_.emplace_back(std::move(user));
+		auto new_player_it = users_.insert(users_.end(), std::move(user));
+		add_id_it_result = user_id_to_it_.emplace(new_player_it->GetId(), new_player_it);
+		if (!add_id_it_result.second) {
+			throw std::logic_error("Add user error: User with id " + std::to_string(*user_id) + " already exit.");
 		}
-		add_name_idx_result = user_name_to_index_.emplace(new_player.GetName(), idx);
+		add_name_it_result = user_name_to_it_.emplace(new_player_it->GetName(), new_player_it);
 
-		return &new_player;
+		return &*new_player_it;
 	} catch (...) {
-		user_id_to_index_.erase(add_id_idx_result.first);
-		user_name_to_index_.erase(add_name_idx_result.first);
+		user_id_to_it_.erase(add_id_it_result.first);
+		user_name_to_it_.erase(add_name_it_result.first);
 		throw;
 	}
 	return nullptr;
 }
 
 User* Users::GetUser(User::Id id) {
-	auto it = user_id_to_index_.find(id);
-	return it != user_id_to_index_.cend() ? &users_[it->second] : nullptr;
+	// auto it = user_id_to_index_.find(id);
+	// return it != user_id_to_index_.cend() ? &users_[it->second] : nullptr;
+	auto it = user_id_to_it_.find(id);
+	return it != user_id_to_it_.cend() ? &*it->second : nullptr;
 }
 
 const User* Users::GetUser(User::Id id) const {
-	auto it = user_id_to_index_.find(id);
-	return it != user_id_to_index_.cend() ? &users_[it->second] : nullptr;
+	// auto it = user_id_to_index_.find(id);
+	// return it != user_id_to_index_.cend() ? &users_[it->second] : nullptr;
+	auto it = user_id_to_it_.find(id);
+	return it != user_id_to_it_.cend() ? &*it->second : nullptr;
 }
 
 size_t Users::GetSize() const {

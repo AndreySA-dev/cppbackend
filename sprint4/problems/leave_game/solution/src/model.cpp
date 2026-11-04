@@ -71,16 +71,21 @@ const Map::Offices& Map::GetOffices() const noexcept {
 
 Dog& Map::AddDog(Dog::Id id) {
 
-	if (dog_id_to_idx_.contains(id)) {
-		throw std::invalid_argument("Duplicate dog");
+	// if (dog_id_to_idx_.contains(id)) {
+	// 	throw std::invalid_argument("Duplicate dog");
+	// }
+	if (dog_id_to_it_.contains(id)) {
+		throw std::invalid_argument("Duplicate dog id");
 	}
 
-	const size_t idx = dogs_.size();
+	// const size_t idx = dogs_.size();
 
-	Dog& new_dog = dogs_.emplace_back(id, *dog_bag_capa_);
+	// Dog& new_dog = dogs_.emplace_back(id, *dog_bag_capa_);
+	auto new_dog_it = dogs_.insert(dogs_.end(), {id, *dog_bag_capa_});
 
 	try {
-		dog_id_to_idx_.emplace(new_dog.GetId(), idx);
+		// dog_id_to_idx_.emplace(new_dog.GetId(), idx);
+		dog_id_to_it_.emplace(new_dog_it->GetId(), new_dog_it);
 		dog_to_road_idx_.clear();
 	} catch (...) {
 		dogs_.pop_back();
@@ -88,31 +93,34 @@ Dog& Map::AddDog(Dog::Id id) {
 	}
 
 	if (GetDogDefaultSpeed()) {
-		new_dog.SetSpeed(*GetDogDefaultSpeed());
+		// new_dog.SetSpeed(*GetDogDefaultSpeed());
+		new_dog_it->SetSpeed(*GetDogDefaultSpeed());
 	}
 
-	return new_dog;
+	return *new_dog_it;
 }
 
 Dog* Map::GetDog(Dog::Id id) {
-
-	auto it = dog_id_to_idx_.find(id);
-	return it != dog_id_to_idx_.cend() ? &dogs_[it->second] : nullptr;
+	// auto it = dog_id_to_idx_.find(id);
+	// return it != dog_id_to_idx_.cend() ? &dogs_[it->second] : nullptr;
+	auto it = dog_id_to_it_.find(id);
+	return it != dog_id_to_it_.cend() ? &*it->second : nullptr;
 }
 
 const Dog* Map::GetDog(Dog::Id id) const {
-
-	auto it = dog_id_to_idx_.find(id);
-	return it != dog_id_to_idx_.cend() ? &dogs_[it->second] : nullptr;
+	// auto it = dog_id_to_idx_.find(id);
+	// return it != dog_id_to_idx_.cend() ? &dogs_[it->second] : nullptr;
+	auto it = dog_id_to_it_.find(id);
+	return it != dog_id_to_it_.cend() ? &*it->second : nullptr;
 }
 
 bool Map::RetireDog(Dog::Id id) {
-	auto it = dog_id_to_idx_.find(id);
-	if (it != dog_id_to_idx_.cend()) {
-		Dog* dog_ptr = &dogs_[it->second];
+	auto it = dog_id_to_it_.find(id);
+	if (it != dog_id_to_it_.cend()) {
+		Dog* dog_ptr = &*it->second;
 		dog_to_road_idx_.erase(dog_ptr);
-		dog_id_to_idx_.erase(id);
-		dogs_.erase(dogs_.begin() + it->second);
+		dog_id_to_it_.erase(id);
+		dogs_.erase(it->second);
 		return true;
 	}
 	return false;
