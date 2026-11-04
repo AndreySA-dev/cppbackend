@@ -1,7 +1,7 @@
-#include "sdk.h"
-#include "log.h"
 #include "commandline_parser.h"
+#include "log.h"
 #include "run.h"
+#include "sdk.h"
 
 #include <iostream>
 
@@ -15,7 +15,9 @@ int main(int argc, const char* argv[]) {
 	try {
 
 		auto start_options = start_opt::ParseCommandLine(argc, argv);
-
+#ifdef MYDEBUG
+		std::cerr << "DBURL -" << start_options->db_url << std::endl;
+#endif
 		if (start_options) {
 			run::Run(*start_options);
 		}

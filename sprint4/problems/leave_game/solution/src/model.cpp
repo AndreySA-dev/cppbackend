@@ -106,6 +106,18 @@ const Dog* Map::GetDog(Dog::Id id) const {
 	return it != dog_id_to_idx_.cend() ? &dogs_[it->second] : nullptr;
 }
 
+bool Map::RetireDog(Dog::Id id) {
+	auto it = dog_id_to_idx_.find(id);
+	if (it != dog_id_to_idx_.cend()) {
+		Dog* dog_ptr = &dogs_[it->second];
+		dog_to_road_idx_.erase(dog_ptr);
+		dog_id_to_idx_.erase(id);
+		dogs_.erase(dogs_.begin() + it->second);
+		return true;
+	}
+	return false;
+}
+
 const Map::Dogs& Map::GetDogs() const noexcept {
 	return dogs_;
 }
@@ -389,6 +401,7 @@ void Dog::SetPosition(const Point pos) {
 
 void Dog::Start() {
 	on_move_ = true;
+	idle_duration = 0ms;
 }
 
 void Dog::Stop() {
@@ -440,6 +453,21 @@ void Dog::AddScore(size_t score) {
 
 size_t Dog::GetScore() const {
 	return score_;
+}
+
+Dog::Duration Dog::GetInGameDuration() const {
+	return in_game_duration;
+}
+
+Dog::Duration Dog::GetIdleDuration() const {
+	return idle_duration;
+}
+
+void Dog::Tick(Duration duration) {
+	in_game_duration += duration;
+	if (IsMove()) {
+		idle_duration += duration;
+	}
 }
 
 char DirectionToChar(model::Direction dir) {
@@ -585,6 +613,14 @@ double Game::GetLootSpawnProbability() const {
 
 const std::string& Game::GetDataSourceName() const {
 	return data_src_name_;
+}
+
+Game::Duration Game::GetDogRetirementTime() const {
+	return retirement_time_;
+}
+
+void Game::SetDogRetirementTime(double seconds) {
+	retirement_time_ = chrono::duration_cast<chrono::steady_clock::duration>(std::chrono::duration<double>(seconds));
 }
 
 } // namespace model

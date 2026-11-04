@@ -278,6 +278,13 @@ model::Game LoadGame(const json::value& jv, std::string data_source_name) {
 		game.SetLootSpawnPreiod(loot_jo->at("period").as_double());
 		game.SetLootSpawnProbability(loot_jo->at("probability").as_double());
 	}
+
+	// Load player retirement time parameter
+	auto retirement_time_jv = cfg_jo.if_contains("dogRetirementTime");
+	if (retirement_time_jv && retirement_time_jv->is_double()) {
+		game.SetDogRetirementTime(retirement_time_jv->as_double());
+	}
+
 	return game;
 }
 

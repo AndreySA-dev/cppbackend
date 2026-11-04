@@ -35,6 +35,11 @@ enum class Actions {
 	NOTHING
 };
 
+struct RetiredPlayer {
+	std::string name;
+	size_t score;
+	double play_time;
+};
 
 class GameHandler : public std::enable_shared_from_this<GameHandler> {
   public:

@@ -12,6 +12,8 @@
 
 namespace model {
 
+using namespace std::literals;
+
 using Dimension = double;
 using Coord = Dimension;
 using Speed = Dimension;
@@ -137,6 +139,7 @@ class Office {
 class Dog {
   public:
 	using Id = util::Tagged<size_t, Dog>;
+	using Duration = std::chrono::steady_clock::duration;
 	static inline const Id noid{std::numeric_limits<Id::ValueType>::max()};
 
 	Dog(Id id, size_t bag_capacity);
@@ -164,17 +167,25 @@ class Dog {
 	void AddScore(size_t score);
 	size_t GetScore() const;
 
+	Duration GetInGameDuration() const;
+	Duration GetIdleDuration() const;
+	void Tick(Duration duration);
+
   private:
 	Point position_ = {0, 0};
 	Speed speed_ = 0.0;
 	Direction direction_ = Direction::NORTH;
 	bool on_move_ = false;
+
 	Id id_;
 
 	size_t bag_capa_ = 0;
 	std::vector<Loot> bag_;
 
 	size_t score_ = 0;
+
+	std::chrono::steady_clock::duration in_game_duration;
+	std::chrono::steady_clock::duration idle_duration;
 
 	static inline const Dimension width_{0.6};
 };
@@ -234,6 +245,7 @@ class Map {
 	const Dogs& GetDogs() const noexcept;
 	Dog* GetDog(Dog::Id id);
 	const Dog* GetDog(Dog::Id id) const;
+	bool RetireDog(Dog::Id id);
 	size_t GetDogCount() const;
 	std::optional<Speed> GetDogDefaultSpeed() const noexcept;
 	void SetDogDefaultSpeed(std::optional<Speed> speed) noexcept;
@@ -268,7 +280,7 @@ class Map {
 	using LootTypeNameToIdx = std::unordered_map<std::string, size_t>;
 
 	Dogs& GetDogs() noexcept;
-	
+
 	// move dog and return new position
 	Point MoveDog(Dog& dog, Dimension distance);
 	size_t GetNextId();
@@ -320,6 +332,7 @@ class ItemGatherer : public collision_detector::ItemGathererProvider {
 class Game {
   public:
 	using Maps = std::vector<Map>;
+	using Duration = std::chrono::steady_clock::duration;
 
 	Game(std::string data_source_name);
 
@@ -342,6 +355,10 @@ class Game {
 
 	const std::string& GetDataSourceName() const;
 
+	Duration GetDogRetirementTime() const;
+	void SetDogRetirementTime(double seconds);
+	
+
   private:
 	using MapIdHasher = util::TaggedHasher<Map::Id>;
 	using MapIdToIndex = std::unordered_map<Map::Id, size_t, MapIdHasher>;
@@ -355,6 +372,8 @@ class Game {
 
 	std::optional<size_t> bag_default_capa_ = 3;
 	std::string data_src_name_;
+
+	Duration retirement_time_ = 60s;
 };
 
 

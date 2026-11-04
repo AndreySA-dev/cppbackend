@@ -19,10 +19,12 @@ std::optional<Args> ParseCommandLine(int argc, const char* argv[]) {
 		("randomize-spawn-points", po::bool_switch(&args.is_random_spawn), "spawn dogs at random positions") //
 		("state-file", po::value(&args.state_file)->value_name("path to file with saved state"), "file with saved state of game") //
 		("save-state-period", po::value(&args.save_state_period)->value_name("path to file with saved state"), "save period")
-		("auto-stop-after", po::value(&args.auto_stop_after_sec)->value_name("auto stop after n second"), "auto stop after n second"); //
+		("auto-stop-after", po::value(&args.auto_stop_after_sec)->value_name("auto stop after n second"), "auto stop after n second") //
+		("db_url", po::value(&args.db_url)->value_name("URL for connect to database"), "URL for connect to database"); //
 
 	po::variables_map vm;
 	po::store(po::parse_command_line(argc, argv, desc), vm);
+	po::store(po::parse_environment(desc, "GAME_"), vm);
 	po::notify(vm);
 
 	if (vm.contains("help"s)) {
@@ -37,6 +39,9 @@ std::optional<Args> ParseCommandLine(int argc, const char* argv[]) {
 	}
 	if (!vm.contains("www-root"s)) {
 		throw std::runtime_error("Not specified www-root argument"s);
+	}
+	if (!vm.contains("db_url"s)) {
+		throw std::runtime_error("Not specified db-url argument"s);
 	}
 
 	return args;

@@ -16,6 +16,7 @@ struct Args {
 	std::string state_file;
 	size_t save_state_period = 0;
 	size_t auto_stop_after_sec = 0;
+	std::string db_url;
 };
 
 
