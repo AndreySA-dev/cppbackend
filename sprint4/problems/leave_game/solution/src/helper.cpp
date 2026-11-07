@@ -51,6 +51,50 @@ std::string URLDecode(const std::string_view encoded) {
 	return decoded;
 }
 
+// generated  by https://www.perplexity.ai
+std::unordered_map<std::string, std::string> ParseURLQuery(const std::string_view query) {
+	std::unordered_map<std::string, std::string> params;
+
+	size_t question_mark = query.find('?');
+	if (query.empty() ||  question_mark == std::string::npos) {
+		return params;
+	}
+
+	std::size_t start = ++question_mark;
+	while (start < query.size()) {
+		std::size_t ampersand = query.find('&', start);
+
+		const std::size_t end = (ampersand == std::string::npos) ? query.size() : ampersand;
+
+		const std::string_view pair = query.substr(start, end - start);
+
+		if (!pair.empty()) {
+			const std::size_t equals = pair.find('=');
+
+			std::string_view key;
+			std::string_view value;
+
+			if (equals == std::string::npos) {
+				key = pair;
+			} else {
+				key = pair.substr(0, equals);
+				value = pair.substr(equals + 1);
+			}
+
+			params[URLDecode(key)] = URLDecode(value);
+		}
+
+		if (ampersand == std::string::npos) {
+			break;
+		}
+
+		start = ampersand + 1;
+	}
+
+	return params;
+}
+
+
 bool LessOrEqual(double a, double b, double eps) {
 	return (a < b) || (std::fabs(a - b) <= eps);
 }

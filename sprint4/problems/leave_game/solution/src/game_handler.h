@@ -1,19 +1,19 @@
 #pragma once
 
+#include "app_listener.h"
 #include "authenticator.h"
 #include "codes.h"
+#include "loot_generator.h"
 #include "model.h"
 #include "user.h"
-#include "loot_generator.h"
-#include "app_listener.h"
 
+#include <atomic>
+#include <boost/asio.hpp>
+#include <boost/json.hpp>
+#include <chrono>
 #include <optional>
 #include <string_view>
 #include <utility>
-#include <atomic>
-#include <chrono>
-#include <boost/json.hpp>
-#include <boost/asio.hpp>
 
 namespace game_handler {
 
@@ -30,10 +30,7 @@ struct ResponseTemplates {
 };
 
 
-enum class Actions {
-	MOVE,
-	NOTHING
-};
+enum class Actions { MOVE, NOTHING };
 
 struct RetiredPlayer {
 	std::string name;
@@ -43,7 +40,10 @@ struct RetiredPlayer {
 
 class GameHandler : public std::enable_shared_from_this<GameHandler> {
   public:
-	explicit GameHandler(model::Game& game, net::io_context& ioc, size_t tick_period_ms, bool random_dog_spawn, loot_gen::LootGenerator loot_generator);
+	using RetiredPlayers = std::vector<RetiredPlayer>;
+
+	explicit GameHandler(model::Game& game, net::io_context& ioc, size_t tick_period_ms, bool random_dog_spawn,
+		loot_gen::LootGenerator loot_generator);
 
 	std::pair<json::value, game::Code> HandleGetMapsRequest() const;
 	std::pair<json::value, game::Code> HandleGetMapRequest(std::string_view map_id) const;
@@ -62,17 +62,19 @@ class GameHandler : public std::enable_shared_from_this<GameHandler> {
 	void StopTick();
 	void UpdateState(std::chrono::steady_clock::duration dur);
 	void AddListener(std::unique_ptr<listener::IApplicationListener> listener);
-	
-	private:
-	
-	json::value GetMapList() const ;
+
+	bool HasRetired();
+	RetiredPlayers PopRetired();
+
+  private:
+	json::value GetMapList() const;
 	void ScheduleTick();
 
-	std::optional<json::value> GetMap(const std::string id) const ;
+	std::optional<json::value> GetMap(const std::string id) const;
 
 	model::Game& game_;
 	auth::Authenticator authenticator_;
-	net::strand<net::io_context::executor_type>  game_strand_;
+	net::strand<net::io_context::executor_type> game_strand_;
 
 	net::steady_timer tick_timer_;
 	const std::chrono::steady_clock::duration tick_period_{0ms};
@@ -81,6 +83,7 @@ class GameHandler : public std::enable_shared_from_this<GameHandler> {
 	bool is_random_dog_spawn_ = false;
 	loot_gen::LootGenerator loot_generator_;
 	std::vector<std::unique_ptr<listener::IApplicationListener>> listeners_;
+	RetiredPlayers retired_;
 };
 
 

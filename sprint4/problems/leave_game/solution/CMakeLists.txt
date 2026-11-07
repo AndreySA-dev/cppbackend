@@ -52,9 +52,11 @@ add_library(game_server_lib STATIC
 	src/game_saver.h
 	src/game_saver.cpp
 	src/app_listener.h
+	src/retired_db.cpp
+	src/retired_db.h
 )
-target_include_directories(game_server_lib PUBLIC CONAN_PKG::boost)
-target_link_libraries(game_server_lib PUBLIC game_model_lib )
+target_include_directories(game_server_lib PUBLIC CONAN_PKG::boost  CONAN_PKG::libpqxx)
+target_link_libraries(game_server_lib PUBLIC game_model_lib  CONAN_PKG::libpqxx)
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     target_compile_definitions(game_server_lib PRIVATE MYDEBUG)
 endif()
@@ -65,9 +67,10 @@ add_executable(game_server
 	src/main.cpp
 	src/run.cpp
 	src/run.h
+
 )
 target_include_directories(game_server PRIVATE CONAN_PKG::boost)
-target_link_libraries(game_server PRIVATE game_model_lib game_server_lib CONAN_PKG::boost )
+target_link_libraries(game_server PRIVATE game_model_lib game_server_lib CONAN_PKG::boost)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     target_compile_definitions(game_server PRIVATE MYDEBUG)

@@ -7,6 +7,7 @@
 #include "log.h"
 #include "model.h"
 #include "perf_timer.h"
+#include "retired_db.h"
 
 #include <filesystem>
 #include <memory>
@@ -80,8 +81,10 @@ struct RequestsTexts {
 	constexpr static std::string_view API_GAME_STATE = "/api/v1/game/state"sv;
 	constexpr static std::string_view API_GAME_ACTION = "/api/v1/game/player/action"sv;
 	constexpr static std::string_view API_GAME_TICK = "/api/v1/game/tick"sv;
+	constexpr static std::string_view API_GAME_RECORDS = "/api/v1/game/records"sv;
 };
 
+constexpr const size_t RETIRED_MAX_RECORDS = 100;
 
 struct ResponseTemplates {
 	ResponseTemplates() = delete;
@@ -126,9 +129,10 @@ struct ResponseTemplates {
 class RequestHandler : public std::enable_shared_from_this<RequestHandler> {
   public:
 	using GameHandlerPtr = std::shared_ptr<game_handler::GameHandler>;
+	using DBPtr = db::DB::Ptr;
 
 	explicit RequestHandler(
-		model::Game& game, GameHandlerPtr game_hndl, const std::string& root_path /*, net::io_context& ctx*/);
+		model::Game& game, GameHandlerPtr game_hndl, DBPtr db, const std::string& root_path /*, net::io_context& ctx*/);
 
 	using HTTPRequest = http::request<http::string_body>;
 
@@ -144,20 +148,22 @@ class RequestHandler : public std::enable_shared_from_this<RequestHandler> {
 
 		if (target.starts_with(RequestsTexts::API)) {
 			// API request
-
-			// resp = HandleAPIRequest(req);
-			auto api_handler = [self = shared_from_this(), send, req = std::forward<decltype(req)>(req)]() {
+			auto api_handler_lambda = [self = shared_from_this(), send, req = std::forward<decltype(req)>(req)]() {
 				auto resp = self->HandleAPIRequest(req);
 				resp.keep_alive(req.keep_alive());
 				send(std::move(resp));
 			};
 
-			return net::dispatch(game_hndl_->GetStrand(), api_handler);
-
-			// send(HandleAPIRequest(req));
+			if (target == RequestsTexts::API_GAME_RECORDS) {
+				// request to DB
+				return net::dispatch(db_->GetStrand(), api_handler_lambda);
+			} else {
+				// request to game hanler
+				return net::dispatch(game_hndl_->GetStrand(), api_handler_lambda);
+			}
 
 		} else {
-			// get a file from www directory
+			// request to static file
 			std::visit(
 				[&req, &send](auto&& result) {
 					result.keep_alive(req.keep_alive());
@@ -177,6 +183,7 @@ class RequestHandler : public std::enable_shared_from_this<RequestHandler> {
 	StringResponse HandleHttpGetGameStateRequest(HTTPRequest req) const;
 	StringResponse HandleHttpSetGameActionRequest(HTTPRequest req);
 	StringResponse HandleHttpTickRequest(HTTPRequest req);
+	StringResponse HandleHttpDBRetiredPlayers(HTTPRequest req);
 
 	std::pair<user::User*, auth::Code> Authorize(const HTTPRequest& req) const;
 	StringResponse GetAuthorizeErrorResponse(auth::Code auth_code) const;
@@ -186,6 +193,7 @@ class RequestHandler : public std::enable_shared_from_this<RequestHandler> {
 
 	model::Game& game_;
 	GameHandlerPtr game_hndl_;
+	DBPtr db_;
 	std::filesystem::path wwwroot_path_;
 };
 

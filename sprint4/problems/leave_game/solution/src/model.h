@@ -185,8 +185,8 @@ class Dog {
 
 	size_t score_ = 0;
 
-	std::chrono::steady_clock::duration in_game_duration;
-	std::chrono::steady_clock::duration idle_duration;
+	std::chrono::steady_clock::duration in_game_duration = 0s;
+	std::chrono::steady_clock::duration idle_duration = 0s;
 
 	static inline const Dimension width_{0.6};
 };
@@ -283,7 +283,7 @@ class Map {
 	using DogToRoadIdx = std::unordered_map<Dog*, const Road*>;
 	using LootTypeNameToIdx = std::unordered_map<std::string, size_t>;
 
-	Dogs& GetDogs() noexcept;
+	// Dogs& GetDogs() noexcept;
 
 	// move dog and return new position
 	Point MoveDog(Dog& dog, Dimension distance);

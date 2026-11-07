@@ -92,7 +92,7 @@ User* Users::AddUser(user::User&& user) {
 	// decltype(user_name_to_index_.emplace()) add_name_idx_result;
 	decltype(user_id_to_it_.emplace()) add_id_it_result;
 	decltype(user_name_to_it_.emplace()) add_name_it_result;
-	
+
 	try {
 		auto user_id = user.GetId();
 		// auto& new_player = users_.emplace_back(std::move(user));
@@ -124,6 +124,17 @@ const User* Users::GetUser(User::Id id) const {
 	// return it != user_id_to_index_.cend() ? &users_[it->second] : nullptr;
 	auto it = user_id_to_it_.find(id);
 	return it != user_id_to_it_.cend() ? &*it->second : nullptr;
+}
+
+void Users::RetireUser(user::User::Id id) {
+	auto user_ptr = GetUser(id);
+	if (user_ptr) {
+		auto id_idx_it = user_id_to_it_.find(id);
+		auto name_idx_it = user_name_to_it_.find(user_ptr->GetName());
+		users_.erase(id_idx_it->second);
+		user_id_to_it_.erase(id_idx_it);
+		user_name_to_it_.erase(name_idx_it);
+	}
 }
 
 size_t Users::GetSize() const {

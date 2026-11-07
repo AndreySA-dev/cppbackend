@@ -21,7 +21,7 @@ class User {
 	static inline const Id noid{std::numeric_limits<Id::ValueType>::max()};
 
 	User(std::string name);
-	User(std::string name, Id id);
+	User(std::string name, Id id); //TODO: restrict use not unique Id
 	User(const User&) = delete;
 	User(User&& other);
 	User& operator=(const User& other) = delete;
@@ -29,7 +29,7 @@ class User {
 
 	const std::string& GetName() const noexcept;
 	Id GetId() const noexcept;
-	void SetNextId(size_t next_id);
+	void SetNextId(size_t next_id); // TODO:  move to Users class
 
 	void SetMap(model::Map* map_ptr);
 	model::Map* GetMap();
@@ -41,13 +41,14 @@ class User {
 	Id id_;
 	model::Map* map_ptr_ = nullptr;
 
-	static size_t next_id_;
+	static size_t next_id_; // TODO: move to Users class
 };
 
 class Users {
+	
+	using Container = std::list<User>;
 
   public:
-	using Container = std::list<User>;
 	using iterator = Container::iterator;
 	using const_iterator = Container::const_iterator;
 
@@ -57,6 +58,7 @@ class Users {
 	User* AddUser(user::User&& user);
 	User* GetUser(User::Id id);
 	const User* GetUser(User::Id id) const;
+	void RetireUser(user::User::Id id);
 
 	size_t GetSize() const;
 

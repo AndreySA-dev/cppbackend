@@ -18,7 +18,8 @@ pair<token::Token, Code> auth::Authenticator::AddUser(string_view name, model::M
 	if (map_ptr) {
 		if (auto new_player_ptr = users_.AddUser(name)) {
 			auto new_token = generator_.GetNewToken();
-			tokens_to_users_id_.insert({new_token, new_player_ptr->GetId()});
+			token_to_users_id_idx_.insert({new_token, new_player_ptr->GetId()});
+			user_id_to_token_idx_.insert({new_player_ptr->GetId(), new_token});
 			new_player_ptr->SetMap(map_ptr);
 			return {new_token, auth::Code::OK};
 		}
@@ -32,26 +33,30 @@ std::pair<user::User*, Code> Authenticator::GetUser(token::Token token) {
 	if (!TokenIsCorrect(token)) {
 		return {nullptr, Code::TOKEN_IS_INCORRECT};
 	}
-	auto it = tokens_to_users_id_.find(token);
-	return it != tokens_to_users_id_.cend() ? pair{users_.GetUser(it->second), Code::OK}
-											: pair{nullptr, Code::PLAYER_NOT_FOUND};
+	auto it = token_to_users_id_idx_.find(token);
+	return it != token_to_users_id_idx_.cend() ? pair{users_.GetUser(it->second), Code::OK}
+											   : pair{nullptr, Code::PLAYER_NOT_FOUND};
 }
 
 std::pair<const user::User*, Code> Authenticator::GetUser(token::Token token) const {
 	if (!TokenIsCorrect(token)) {
 		return {nullptr, Code::TOKEN_IS_INCORRECT};
 	}
-	auto it = tokens_to_users_id_.find(token);
-	return it != tokens_to_users_id_.cend() ? pair{users_.GetUser(it->second), Code::OK}
-											: pair{nullptr, Code::PLAYER_NOT_FOUND};
+	auto it = token_to_users_id_idx_.find(token);
+	return it != token_to_users_id_idx_.cend() ? pair{users_.GetUser(it->second), Code::OK}
+											   : pair{nullptr, Code::PLAYER_NOT_FOUND};
 }
 
-user::Users& Authenticator::GetUsers() {
-	return users_;
-}
+// user::Users& Authenticator::GetUsers() {
+// 	return users_;
+// }
 
 const user::Users& Authenticator::GetUsers() const {
 	return users_;
+}
+
+const user::User* Authenticator::GetUser(user::User::Id id) const {
+	return users_.GetUser(id);
 }
 
 
@@ -65,9 +70,8 @@ model::Game Authenticator::GetGame() {
 
 std::vector<token::Token> Authenticator::GetTokens() const {
 	std::vector<token::Token> result;
-	std::transform(tokens_to_users_id_.cbegin(), tokens_to_users_id_.cend(), std::back_inserter(result), [] (const auto& token) {
-		return token.first;
-	});
+	std::transform(token_to_users_id_idx_.cbegin(), token_to_users_id_idx_.cend(), std::back_inserter(result),
+		[](const auto& token) { return token.first; });
 	return result;
 }
 
@@ -83,9 +87,19 @@ void Authenticator::RestorePlayer(user::User user, model::Map::Id map_id, token:
 	}
 
 	user.SetMap(map_ptr);
-	tokens_to_users_id_.insert({token, user.GetId()});
+	token_to_users_id_idx_.insert({token, user.GetId()});
 	users_.AddUser(std::move(user));
 	user.SetNextId(users_.GetSize());
+}
+
+void Authenticator::RetirePlayer(user::User::Id user_id) {
+	users_.RetireUser(user_id);
+	auto id_to_token_it = user_id_to_token_idx_.find(user_id);
+	auto user_token = id_to_token_it->second;
+	auto token_to_id_it = token_to_users_id_idx_.find(user_token);
+
+	user_id_to_token_idx_.erase(id_to_token_it);
+	token_to_users_id_idx_.erase(token_to_id_it);
 }
 
 

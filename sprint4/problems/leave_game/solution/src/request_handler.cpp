@@ -14,9 +14,8 @@ using namespace game_handler;
 namespace net = boost::asio;
 
 
-RequestHandler::RequestHandler(
-	model::Game& game, GameHandlerPtr game_hndl, const std::string& root_path )
-	: game_{game}, game_hndl_(game_hndl), wwwroot_path_{root_path} {}
+RequestHandler::RequestHandler(model::Game& game, GameHandlerPtr game_hndl, DBPtr db, const std::string& root_path)
+	: game_{game}, game_hndl_(game_hndl), db_(std::move(db)), wwwroot_path_{root_path} {}
 
 
 StringResponse RequestHandler::HandleAPIRequest(HTTPRequest req) {
@@ -59,6 +58,11 @@ StringResponse RequestHandler::HandleAPIRequest(HTTPRequest req) {
 		// API request list all players =============================
 
 		resp = HandleHttpGetPlayersRequest(req);
+
+	} else if (target.starts_with(RequestsTexts::API_GAME_RECORDS)) {
+		// API request list all players =============================
+
+		resp = HandleHttpDBRetiredPlayers(req);
 
 	} else {
 		resp = GetStringResponse(ResponseTemplates::BAD_REQUEST, http::status::bad_request, ContentType::APP_JSON);
@@ -150,10 +154,8 @@ StringResponse RequestHandler::HandleHttpGameJoinRequest(HTTPRequest req) {
 			http::status::bad_request, ContentType::APP_JSON);
 		join_resp.set(http::field::cache_control, "no-cache"sv);
 		return join_resp;
-		
-	} catch (...) {
-		throw;
-	}
+
+	} catch (...) { throw; }
 
 	if (name.size() == 0) {
 		join_resp = GetStringResponse(
@@ -239,7 +241,8 @@ StringResponse RequestHandler::HandleHttpSetGameActionRequest(HTTPRequest req) {
 	}
 
 	auto [user_ptr, auth_code] = Authorize(req);
-	// std::cerr << "Action authorize user - " << user_ptr->GetName() << ". dogid - " << *user_ptr->GetUserDog()->GetId()
+	// std::cerr << "Action authorize user - " << user_ptr->GetName() << ". dogid - " <<
+	// *user_ptr->GetUserDog()->GetId()
 	// 		  << endl; // ============= DBG LOG !!!
 	if (auth_code != auth::Code::OK) {
 		return GetAuthorizeErrorResponse(auth_code);
@@ -310,6 +313,53 @@ StringResponse RequestHandler::HandleHttpTickRequest(HTTPRequest req) {
 	return resp;
 }
 
+StringResponse RequestHandler::HandleHttpDBRetiredPlayers(HTTPRequest req) {
+	StringResponse resp;
+	// check method GET or HEAD
+	if (!(req.method() == http::verb::get || req.method() == http::verb::head)) {
+		resp = GetStringResponse(
+			ResponseTemplates::INVALID_METHOD, http::status::method_not_allowed, ContentType::APP_JSON);
+		resp.set(http::field::cache_control, "no-cache"sv);
+		resp.set(http::field::allow, "GET, HEAD");
+		return resp;
+	}
+	auto target = req.target();
+	auto query_params = helper::ParseURLQuery(target);
+
+	size_t start_record = 0;
+	size_t max_records = RETIRED_MAX_RECORDS;
+	if (!query_params.empty()) {
+		if (query_params.contains("start")) {
+			try {
+				start_record = std::stoul(query_params.at("start"));
+			} catch (...) {}
+		}
+		if (query_params.contains("maxItems")) {
+			try {
+				max_records = std::stoul(query_params.at("maxItems"));
+			} catch (...) {}
+		}
+	}
+
+	if (max_records > RETIRED_MAX_RECORDS) {
+		return {GetStringResponse(
+			"Error: maxItems argument incorrect.", http::status::bad_request, ContentType::TEXT_PLAIN)};
+	}
+
+	try {
+		auto db_reader = db_->GetReadUnitOfWork();
+		auto players = db_reader.LoadRetired(start_record, max_records);
+		auto players_ja = db::RetiredPlayersToJSONA(players);
+		resp = GetStringResponse(json::serialize(players_ja), http::status::ok, ContentType::APP_JSON);
+		resp.set(http::field::cache_control, "no-cache"sv);
+	} catch (const std::exception& e) {
+		cerr << "Error. DB query error: " << e.what() << endl;
+		resp =
+			GetStringResponse("Error:DB error.", http::status::bad_request, ContentType::TEXT_PLAIN);
+	}
+	return resp;
+}
+
 
 std::pair<user::User*, auth::Code> RequestHandler::Authorize(const HTTPRequest& req) const {
 
@@ -360,7 +410,6 @@ std::string_view RequestHandler::GetTypeByExt(std::string_view ext) const {
 
 	auto it = MIMEs.find(ext);
 	return it != MIMEs.end() ? it->second : ContentType::APP_OCTETSTREAM;
-	
 }
 
 CommonResponse RequestHandler::GetFileResponse(HTTPRequest req) {

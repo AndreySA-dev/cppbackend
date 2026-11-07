@@ -117,8 +117,7 @@ const Dog* Map::GetDog(Dog::Id id) const {
 bool Map::RetireDog(Dog::Id id) {
 	auto it = dog_id_to_it_.find(id);
 	if (it != dog_id_to_it_.cend()) {
-		Dog* dog_ptr = &*it->second;
-		dog_to_road_idx_.erase(dog_ptr);
+		dog_to_road_idx_.erase(&*it->second);
 		dog_id_to_it_.erase(id);
 		dogs_.erase(it->second);
 		return true;
@@ -130,10 +129,9 @@ const Map::Dogs& Map::GetDogs() const noexcept {
 	return dogs_;
 }
 
-Map::Dogs& Map::GetDogs() noexcept {
-	return dogs_;
-}
-
+// Map::Dogs& Map::GetDogs() noexcept {
+// 	return dogs_;
+// }
 
 void Map::AddLootType(LootType loot_type) {
 	size_t idx = loot_types_.size();
@@ -215,10 +213,11 @@ void Map::Act(std::chrono::steady_clock::duration duration, size_t new_loot_numb
 	ItemGatherer gatherer(offices_, loots_);
 
 	// move all dogs
-	for (auto& dog : GetDogs()) {
+	for (auto& dog : dogs_) {
 		model::Dimension distance = dog.GetSpeed() * std::chrono::duration<double>(duration).count();
 		auto start_pos = dog.GetPosition();
 		auto new_pos = MoveDog(dog, distance);
+		dog.Tick(duration);
 #ifdef MYDEBUG
 		std::cerr << "Dog move " << start_pos.x << "," << start_pos.y << " " << new_pos.x << "," << new_pos.y
 				  << std::endl;
@@ -473,7 +472,7 @@ Dog::Duration Dog::GetIdleDuration() const {
 
 void Dog::Tick(Duration duration) {
 	in_game_duration += duration;
-	if (IsMove()) {
+	if (!IsMove()) {
 		idle_duration += duration;
 	}
 }

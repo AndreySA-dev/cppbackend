@@ -198,11 +198,38 @@ void GameHandler::ScheduleTick() {
 }
 
 void GameHandler::UpdateState(std::chrono::steady_clock::duration duration) {
+
 	// handle all maps
 	for (auto& map : game_.GetMaps()) {
 		auto new_loot_count = loot_generator_.Generate(
 			std::chrono::duration_cast<std::chrono::milliseconds>(duration), map.GetLootCount(), map.GetDogCount());
 		map.Act(duration, new_loot_count);
+
+		// START. retire players ==============================================
+		std::vector<user::User::Id> to_retire_ids;
+		for (auto& dog : map.GetDogs()) {
+			if (dog.GetIdleDuration() >= game_.GetDogRetirementTime()) {
+				user::User::Id user_id(*dog.GetId());
+				to_retire_ids.push_back(user_id);
+				retired_.push_back({authenticator_.GetUser(user_id)->GetName(), dog.GetScore(),
+					(std::chrono::duration<double>(dog.GetInGameDuration())).count()});
+			}
+		}
+
+		for (const auto& id : to_retire_ids) {
+#ifdef MYDEBUG
+			std::cerr << "Retire - " << *id << endl;
+			std::cerr << "Retire - " << *id << endl;
+			std::cerr << "Retire - " << *id << endl;
+			std::cerr << "Retire - " << *id << endl;
+			std::cerr << "Retire - " << *id << endl;
+			std::cerr << "Retire - " << *id << endl;
+			std::cerr << "Retire - " << *id << endl;
+#endif
+			map.RetireDog(model::Dog::Id(*id));
+			authenticator_.RetirePlayer(id);
+		}
+		// END. retire players ==============================================
 	}
 
 	for (auto& listener : listeners_) {
@@ -212,6 +239,16 @@ void GameHandler::UpdateState(std::chrono::steady_clock::duration duration) {
 
 void GameHandler::AddListener(std::unique_ptr<listener::IApplicationListener> listener) {
 	listeners_.push_back(std::move(listener));
+}
+
+bool GameHandler::HasRetired() {
+	return !retired_.empty();
+}
+
+GameHandler::RetiredPlayers GameHandler::PopRetired() {
+	RetiredPlayers result;
+	result.swap(retired_);
+	return result;
 }
 
 

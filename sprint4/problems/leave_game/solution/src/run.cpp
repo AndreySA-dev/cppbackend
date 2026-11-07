@@ -7,6 +7,7 @@
 #include "log.h"
 #include "model.h"
 #include "request_handler.h"
+#include "retired_db.h"
 
 
 namespace run {
@@ -57,9 +58,11 @@ void Run(const start_opt::Args& run_options) {
 	}
 #endif
 
+	// read Config file
 	std::filesystem::path cfg_path(run_options.cfg_file_path);
 	model::Game game = json_loader::LoadGame(cfg_path, cfg_path.filename());
 
+	// handling signals (ctrl+c ctrl+d etc..)
 	net::signal_set signals(ioc, SIGINT, SIGTERM);
 	signals.async_wait([&ioc /*, game_hndl*/](const sys::error_code& ec, [[maybe_unused]] int signal_number) {
 		if (!ec) {
@@ -70,8 +73,10 @@ void Run(const start_opt::Args& run_options) {
 		}
 	});
 
+	// loot generator
 	loot_gen::LootGenerator loot{std::chrono::milliseconds(static_cast<int>(game.GetLootSpawnPeriod() * 1000)),
 		game.GetLootSpawnProbability() /*, []() { return helper::GetRandomNum(0.0, 1.0);  }*/};
+
 
 	auto game_hndl = std::make_shared<game_handler::GameHandler>(
 		game, ioc, run_options.tick_period, run_options.is_random_spawn, std::move(loot));
@@ -102,14 +107,21 @@ void Run(const start_opt::Args& run_options) {
 		}
 	}
 
+
+	// SECTION. Save retired players to DB ==============================================================
+	auto retired_db = db::DB::Create(run_options.db_url, ioc);
+	auto retired_saver = std::make_unique<db::DBRetiredPlayerSaverListener>(retired_db, *game_hndl, ioc);
+	game_hndl->AddListener(std::move(retired_saver));
+
 	// start game ticks
 	if (run_options.tick_period != 0) {
 		game_hndl->StartTick();
 	}
 
-	auto handler = std::make_shared<http_handler::RequestHandler>(game, game_hndl, run_options.www_root_dir /*, ioc */);
+	auto http_handler =
+		std::make_shared<http_handler::RequestHandler>(game, game_hndl, retired_db, run_options.www_root_dir /*, ioc */);
 
-	http_handler::LoggingRequestHandler logging_handler{handler};
+	http_handler::LoggingRequestHandler logging_handler{http_handler};
 
 	http_server::ServeHttp(ioc, {address, port}, [&logging_handler](auto&& req, const auto& socket, auto&& send) {
 		logging_handler(std::forward<decltype(req)>(req), std::forward<decltype(socket)>(socket),

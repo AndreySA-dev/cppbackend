@@ -25,7 +25,7 @@ void FileSaver::SaveState() {
 	auto game_repr = std::make_shared<sr::GameRepr>(game_h_.GetGame());
 	auto auth_repr = std::make_shared<sr::AuthRepr>(game_h_.GetAuthenticator());
 
-	auto file_save = [game_repr, auth_repr, save_path = save_path_]() {
+	auto file_save = [game_repr, auth_repr, save_path = save_path_]() { // TODO std::move
 		fs::path tmp_file_path = save_path.parent_path() / ("~" + save_path.filename().string());
 		bool is_save_correct = false;
 		if (auto ofile = std::ofstream(tmp_file_path.string(), std::ios::binary)) {

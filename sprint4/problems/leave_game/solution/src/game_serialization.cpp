@@ -6,7 +6,7 @@ namespace serialization {
 
 LootRepr::LootRepr(const model::Loot& loot) : loot_id_(loot.id), position_(loot.position) {
 	if (!loot.loot_type) {
-		throw std::out_of_range("Loot rerialization error. No loot type.");
+		throw std::out_of_range("Loot representation error. No loot type.");
 	}
 	loot_type_id_ = loot.loot_type->id;
 }
@@ -29,11 +29,11 @@ DogRepr::DogRepr(const model::Dog& dog /*, const model::Map* map */)
 	: position_(dog.GetPosition()), speed_(dog.GetSpeed()), direction_(dog.GetDirection()), on_move_(dog.IsMove()),
 	  dog_id_(dog.GetId()), bag_capa_(dog.GetBagCapacity()), score_(dog.GetScore()) {
 	bag_.reserve(dog.GetBag().size());
-	// for (const auto& loot : dog.GetBag()) { // TO-DO: use std::transform
-	// 	bag_.push_back(LootRepr(loot));
-	// }
-	std::transform(dog.GetBag().begin(), dog.GetBag().end(), std::back_inserter(bag_),
-		[](const auto& loot) { return LootRepr(loot); });
+	for (const auto& loot : dog.GetBag()) { // TO-DO: use std::transform
+		bag_.push_back(LootRepr(loot));
+	}
+	// std::transform(dog.GetBag().begin(), dog.GetBag().end(), std::back_inserter(bag_), //  <<<---- BUG !!!
+	// 	[](const auto& loot) { return LootRepr(loot); });
 }
 
 const model::Dog& DogRepr::Restore(model::Map& map) {
