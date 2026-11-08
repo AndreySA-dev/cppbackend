@@ -19,8 +19,8 @@ DB::DB(const std::string& connection_url, net::io_context& ioc, Private)
 	work.exec("CREATE TABLE IF NOT EXISTS retired ("
 			  "name varchar(64) NOT NULL,"
 			  "score integer NOT NULL,"
-			  "play_time float4 NOT NULL"
-			  ");"_zv);
+			  "play_time float4 NOT NULL);"
+			  "CREATE INDEX IF NOT EXISTS retired_score_time_name ON retired (score, play_time, name);"_zv);
 
 	work.commit();
 }
@@ -36,14 +36,6 @@ DB::Transaction DB::GetReadTransaction() {
 DB::Transaction DB::GetWriteTransaction() {
 	return GetTransaction(OperationType::WRITE);
 }
-
-// std::shared_ptr<DB::Transaction> DB::GetTransactionPtr() {
-// 	if (write_locked_) {
-// 		throw std::logic_error("Error. Write connection is busy.");
-// 	}
-// 	write_locked_ = true;
-// 	return std::make_shared<DB::Transaction>(shared_from_this(), write_connection_, OperationType::WRITE);
-// }
 
 net::strand<net::io_context::executor_type>& DB::GetStrand() {
 	return strand_;
@@ -147,7 +139,6 @@ json::array RetiredPlayersToJSONA(const gh::GameHandler::RetiredPlayers& players
 			json::object{{"name", player.name}, {"score", player.score}, {"playTime", player.play_time}});
 	}
 	return result;
-	// return json::array{};
 }
 
 } // namespace db
