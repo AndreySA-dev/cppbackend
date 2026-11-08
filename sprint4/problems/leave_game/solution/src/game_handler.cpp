@@ -126,8 +126,7 @@ std::pair<json::value, game::Code> GameHandler::HandleActionRequest(
 		} else if (prop == "L") {
 			dog->SetDirection(model::Direction::WEST);
 		} else if (prop == "") {
-			// "" -> STOP DOG
-			// dog->SetSpeed(0.0); <-- TO-DO
+			dog->Stop();
 		} else {
 			return {{}, game::Code::UNKNOWN_ACTION};
 		}
@@ -218,13 +217,13 @@ void GameHandler::UpdateState(std::chrono::steady_clock::duration duration) {
 
 		for (const auto& id : to_retire_ids) {
 #ifdef MYDEBUG
-			std::cerr << "Retire - " << *id << endl;
-			std::cerr << "Retire - " << *id << endl;
-			std::cerr << "Retire - " << *id << endl;
-			std::cerr << "Retire - " << *id << endl;
-			std::cerr << "Retire - " << *id << endl;
-			std::cerr << "Retire - " << *id << endl;
-			std::cerr << "Retire - " << *id << endl;
+			// std::cerr << "Retire - " << *id << endl;
+			// std::cerr << "Retire - " << *id << endl;
+			// std::cerr << "Retire - " << *id << endl;
+			// std::cerr << "Retire - " << *id << endl;
+			// std::cerr << "Retire - " << *id << endl;
+			// std::cerr << "Retire - " << *id << endl;
+			// std::cerr << "Retire - " << *id << endl;
 #endif
 			map.RetireDog(model::Dog::Id(*id));
 			authenticator_.RetirePlayer(id);

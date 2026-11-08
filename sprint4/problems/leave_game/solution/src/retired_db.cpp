@@ -29,50 +29,50 @@ DB::Ptr DB::Create(const std::string& connection_url, net::io_context& ioc) {
 	return std::make_shared<DB>(connection_url, ioc, Private());
 }
 
-DB::UnitOfWork DB::GetReadUnitOfWork() {
-	return GetUnitOfWork(OperationType::READ);
+DB::Transaction DB::GetReadTransaction() {
+	return GetTransaction(OperationType::READ);
 }
 
-DB::UnitOfWork DB::GetWriteUnitOfWork() {
-	return GetUnitOfWork(OperationType::WRITE);
+DB::Transaction DB::GetWriteTransaction() {
+	return GetTransaction(OperationType::WRITE);
 }
 
-std::shared_ptr<DB::UnitOfWork> DB::GetWriteUnitOfWorkPtr() {
-	if (write_locked_) {
-		throw std::logic_error("Error. Write connection is busy.");
-	}
-	write_locked_ = true;
-	return std::make_shared<DB::UnitOfWork>(shared_from_this(), write_connection_, OperationType::WRITE);
-}
+// std::shared_ptr<DB::Transaction> DB::GetTransactionPtr() {
+// 	if (write_locked_) {
+// 		throw std::logic_error("Error. Write connection is busy.");
+// 	}
+// 	write_locked_ = true;
+// 	return std::make_shared<DB::Transaction>(shared_from_this(), write_connection_, OperationType::WRITE);
+// }
 
 net::strand<net::io_context::executor_type>& DB::GetStrand() {
 	return strand_;
 }
 
-DB::UnitOfWork DB::GetUnitOfWork(OperationType type) {
+DB::Transaction DB::GetTransaction(OperationType type) {
 	if (type == OperationType::READ) {
 		if (read_locked_) {
 			throw std::logic_error("Error. Read connection is busy.");
 		}
 		read_locked_ = true;
-		return DB::UnitOfWork(shared_from_this(), read_connection_, OperationType::READ);
+		return DB::Transaction(shared_from_this(), read_connection_, OperationType::READ);
 	} else {
 		if (write_locked_) {
 			throw std::logic_error("Error. Write connection is busy.");
 		}
 		write_locked_ = true;
-		return DB::UnitOfWork(shared_from_this(), write_connection_, OperationType::WRITE);
+		return DB::Transaction(shared_from_this(), write_connection_, OperationType::WRITE);
 	}
 }
 
-DB::UnitOfWork::UnitOfWork(DB::Ptr db, pqxx::connection& connection, OperationType op_type)
+DB::Transaction::Transaction(DB::Ptr db, pqxx::connection& connection, OperationType op_type)
 	: db_ptr_(db), work_(connection), op_type_(op_type) {}
 
-DB::OperationType DB::UnitOfWork::GetOpType() const {
+DB::OperationType DB::Transaction::GetOpType() const {
 	return op_type_;
 }
 
-bool DB::UnitOfWork::SaveRetired(const gh::GameHandler::RetiredPlayers&& retired) {
+bool DB::Transaction::SaveRetired(const gh::GameHandler::RetiredPlayers&& retired) {
 	if (is_utilized_) {
 		throw std::logic_error("Error. Unit of work can't be used two times.");
 	}
@@ -85,7 +85,7 @@ bool DB::UnitOfWork::SaveRetired(const gh::GameHandler::RetiredPlayers&& retired
 	return false;
 }
 
-gh::GameHandler::RetiredPlayers DB::UnitOfWork::LoadRetired(size_t start_record, size_t max_records) {
+gh::GameHandler::RetiredPlayers DB::Transaction::LoadRetired(size_t start_record, size_t max_records) {
 	if (is_utilized_) {
 		throw std::logic_error("Error. Unit of work can't be used two times.");
 	}
@@ -113,7 +113,7 @@ gh::GameHandler::RetiredPlayers DB::UnitOfWork::LoadRetired(size_t start_record,
 // 	work_.commit();
 // }
 
-DB::UnitOfWork::~UnitOfWork() {
+DB::Transaction::~Transaction() {
 	// unblock connection in DB
 	if (op_type_ == DB::OperationType::READ) {
 		db_ptr_->read_locked_ = false;
@@ -125,22 +125,25 @@ DB::UnitOfWork::~UnitOfWork() {
 DBRetiredPlayerSaverListener::DBRetiredPlayerSaverListener(DB::Ptr db, gh::GameHandler& game_hndl, net::io_context& ioc)
 	: db_(db), game_hndl_(game_hndl), ioc_(ioc), write_strand_(net::make_strand(ioc_)) {}
 
-void DBRetiredPlayerSaverListener::OnTick(std::chrono::milliseconds duration) {
+void DBRetiredPlayerSaverListener::OnTick([[maybe_unused]] std::chrono::milliseconds duration) {
 
 	if (game_hndl_.HasRetired()) {
-		auto p = db_->GetWriteUnitOfWorkPtr();
-		auto write_functor = [write_unit = std::move(p), players = std::move(game_hndl_.PopRetired())]() {
-			write_unit->SaveRetired(std::move(players));
-		};
+		// auto p = db_->GetWriteUnitOfWorkPtr();
+		// auto write_functor = [write_unit = std::move(p), players = std::move(game_hndl_.PopRetired())]() {
+		// 	write_unit->SaveRetired(std::move(players));
+		// };
+		auto transaction = db_->GetWriteTransaction();
+		transaction.SaveRetired(game_hndl_.PopRetired());
 
-		if (!ioc_.stopped()) {
-#ifdef MYDEBUG
-			// auto now = std::chrono::system_clock::now();
-			// std::time_t t = std::chrono::system_clock::to_time_t(now);
-			// std::cerr << std::ctime(&t) << ". Async save retired players" << std::endl;
-#endif
-			net::post(write_strand_, write_functor);
-		}
+
+		// 		if (!ioc_.stopped()) {
+		// #ifdef MYDEBUG
+		// 			// auto now = std::chrono::system_clock::now();
+		// 			// std::time_t t = std::chrono::system_clock::to_time_t(now);
+		// 			// std::cerr << std::ctime(&t) << ". Async save retired players" << std::endl;
+		// #endif
+		// 			net::post(write_strand_, std::move(write_functor));
+		// 		}
 	}
 }
 
@@ -152,6 +155,7 @@ json::array RetiredPlayersToJSONA(const gh::GameHandler::RetiredPlayers& players
 			json::object{{"name", player.name}, {"score", player.score}, {"playTime", player.play_time}});
 	}
 	return result;
+	// return json::array{};
 }
 
 } // namespace db

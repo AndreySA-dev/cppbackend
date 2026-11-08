@@ -46,6 +46,7 @@ void Run(const start_opt::Args& run_options) {
 	const unsigned num_threads = std::thread::hardware_concurrency();
 	net::io_context ioc(num_threads);
 
+	
 #ifdef MYDEBUG
 	net::steady_timer auto_stop_timer{ioc};
 	if (run_options.auto_stop_after_sec != 0) {
@@ -109,17 +110,20 @@ void Run(const start_opt::Args& run_options) {
 
 
 	// SECTION. Save retired players to DB ==============================================================
-	auto retired_db = db::DB::Create(run_options.db_url, ioc);
-	auto retired_saver = std::make_unique<db::DBRetiredPlayerSaverListener>(retired_db, *game_hndl, ioc);
-	game_hndl->AddListener(std::move(retired_saver));
+	db::DB::Ptr retired_db = nullptr;
+	if (!run_options.db_url.empty()) {
+		retired_db = db::DB::Create(run_options.db_url, ioc);
+		auto retired_saver = std::make_unique<db::DBRetiredPlayerSaverListener>(retired_db, *game_hndl, ioc);
+		game_hndl->AddListener(std::move(retired_saver));
+	}
 
 	// start game ticks
 	if (run_options.tick_period != 0) {
 		game_hndl->StartTick();
 	}
 
-	auto http_handler =
-		std::make_shared<http_handler::RequestHandler>(game, game_hndl, retired_db, run_options.www_root_dir /*, ioc */);
+	auto http_handler = std::make_shared<http_handler::RequestHandler>(
+		game, game_hndl, retired_db, run_options.www_root_dir /*, ioc */);
 
 	http_handler::LoggingRequestHandler logging_handler{http_handler};
 

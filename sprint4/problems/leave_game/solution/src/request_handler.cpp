@@ -138,8 +138,8 @@ StringResponse RequestHandler::HandleHttpGameJoinRequest(HTTPRequest req) {
 		return join_resp;
 	}
 
-	std::string_view name;
-	std::string_view map_id;
+	std::string name;
+	std::string map_id;
 
 	// check JSON data is correct
 	try {
@@ -248,17 +248,23 @@ StringResponse RequestHandler::HandleHttpSetGameActionRequest(HTTPRequest req) {
 		return GetAuthorizeErrorResponse(auth_code);
 	}
 
-	// parse json body
-	string_view move;
-	boost::system::error_code ec;
-	json::value jv = json::parse(req.body(), ec);
-	if (!ec) {
-		if (auto jo = jv.if_object()) {
-			if (auto move_jv = jo->if_contains("move")) {
-				move = move_jv->as_string();
+	string move;
+	try {
+		// parse json body
+		boost::system::error_code ec;
+		json::value jv = json::parse(req.body(), ec);
+		if (!ec) {
+			if (auto jo = jv.if_object()) {
+				if (auto move_jv = jo->if_contains("move")) {
+					move = move_jv->as_string();
+				}
 			}
 		}
+	} catch (const std::exception& e) {
+		std::cerr << "Action error json - " << e.what() << endl;
+		throw e;
 	}
+
 
 	// check move string is correct value
 	if (move.find_first_not_of(model::DirectionTitles) != string::npos) {
@@ -269,7 +275,6 @@ StringResponse RequestHandler::HandleHttpSetGameActionRequest(HTTPRequest req) {
 	}
 
 	auto handle_result = game_hndl_->HandleActionRequest(user_ptr, game_handler::Actions::MOVE, move);
-
 	resp = GetStringResponse(json::serialize(handle_result.first), http::status::ok, ContentType::APP_JSON);
 	resp.set(http::field::cache_control, "no-cache"sv);
 	return resp;
@@ -315,6 +320,13 @@ StringResponse RequestHandler::HandleHttpTickRequest(HTTPRequest req) {
 
 StringResponse RequestHandler::HandleHttpDBRetiredPlayers(HTTPRequest req) {
 	StringResponse resp;
+	if (!db_) {
+		resp = GetStringResponse(
+			ResponseTemplates::SERVER_INTERNAL_ERROR, http::status::internal_server_error, ContentType::APP_JSON);
+		resp.set(http::field::cache_control, "no-cache"sv);
+		resp.set(http::field::allow, "GET, HEAD");
+		return resp;
+	}
 	// check method GET or HEAD
 	if (!(req.method() == http::verb::get || req.method() == http::verb::head)) {
 		resp = GetStringResponse(
@@ -323,6 +335,7 @@ StringResponse RequestHandler::HandleHttpDBRetiredPlayers(HTTPRequest req) {
 		resp.set(http::field::allow, "GET, HEAD");
 		return resp;
 	}
+
 	auto target = req.target();
 	auto query_params = helper::ParseURLQuery(target);
 
@@ -347,15 +360,14 @@ StringResponse RequestHandler::HandleHttpDBRetiredPlayers(HTTPRequest req) {
 	}
 
 	try {
-		auto db_reader = db_->GetReadUnitOfWork();
+		auto db_reader = db_->GetReadTransaction();
 		auto players = db_reader.LoadRetired(start_record, max_records);
 		auto players_ja = db::RetiredPlayersToJSONA(players);
 		resp = GetStringResponse(json::serialize(players_ja), http::status::ok, ContentType::APP_JSON);
 		resp.set(http::field::cache_control, "no-cache"sv);
 	} catch (const std::exception& e) {
 		cerr << "Error. DB query error: " << e.what() << endl;
-		resp =
-			GetStringResponse("Error:DB error.", http::status::bad_request, ContentType::TEXT_PLAIN);
+		resp = GetStringResponse("Error:DB error.", http::status::bad_request, ContentType::TEXT_PLAIN);
 	}
 	return resp;
 }

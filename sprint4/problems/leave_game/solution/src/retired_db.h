@@ -18,7 +18,7 @@ class DB : public std::enable_shared_from_this<DB> {
 	struct Private {
 		explicit Private() = default;
 	};
-	class UnitOfWork; // predeclare
+	class Transaction; // predeclare
 
   public:
 	using Ptr = std::shared_ptr<DB>;
@@ -28,31 +28,31 @@ class DB : public std::enable_shared_from_this<DB> {
 
 	static Ptr Create(const std::string& connection_url, net::io_context& ioc);
 
-	UnitOfWork GetReadUnitOfWork();
-	UnitOfWork GetWriteUnitOfWork();
-	std::shared_ptr<UnitOfWork> GetWriteUnitOfWorkPtr();
+	Transaction GetReadTransaction();
+	Transaction GetWriteTransaction();
+	// std::shared_ptr<Transaction> GetTransactionPtr();
 	net::strand<net::io_context::executor_type>& GetStrand();
 
   private:
 	enum class OperationType { READ, WRITE };
 
-	UnitOfWork GetUnitOfWork(OperationType type);
+	Transaction GetTransaction(OperationType type);
 
-	class UnitOfWork {
+	class Transaction {
 	  public:
-		UnitOfWork(DB::Ptr db_ptr, pqxx::connection& connection, OperationType op_type);
+		Transaction(DB::Ptr db_ptr, pqxx::connection& connection, OperationType op_type);
 		OperationType GetOpType() const;
 
 		bool SaveRetired(const gh::GameHandler::RetiredPlayers&& retired);
 		gh::GameHandler::RetiredPlayers LoadRetired(size_t start_record = 1, size_t max_records = 0);
 		// void Commit();
 
-		~UnitOfWork();
+		~Transaction();
 
-		UnitOfWork(const UnitOfWork&) = delete;
-		UnitOfWork(UnitOfWork&&) = delete;
-		UnitOfWork& operator=(const UnitOfWork&) = delete;
-		UnitOfWork& operator=(UnitOfWork&&) = delete;
+		Transaction(const Transaction&) = delete;
+		Transaction(Transaction&&) = delete;
+		Transaction& operator=(const Transaction&) = delete;
+		Transaction& operator=(Transaction&&) = delete;
 
 	  private:
 		DB::Ptr db_ptr_;
@@ -74,7 +74,7 @@ class DBRetiredPlayerSaverListener : public listener::IApplicationListener {
 
   public:
 	DBRetiredPlayerSaverListener(DB::Ptr db, gh::GameHandler& game_hndl, net::io_context& ioc);
-	void OnTick(std::chrono::milliseconds duration) override;
+	void OnTick([[maybe_unused]] std::chrono::milliseconds duration) override;
 
   private:
 	DB::Ptr db_;

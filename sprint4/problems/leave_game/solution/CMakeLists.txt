@@ -45,7 +45,7 @@ add_library(game_server_lib STATIC
 	src/log.h
 	src/perf_timer.h
 	src/request_handler.cpp
-	src/request_handler.h
+	src/request_handler.h	
 	src/sdk.h
 	src/game_serialization.h
 	src/game_serialization.cpp

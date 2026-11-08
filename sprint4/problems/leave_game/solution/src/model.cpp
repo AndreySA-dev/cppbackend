@@ -211,7 +211,7 @@ size_t Map::GetDogCount() const {
 void Map::Act(std::chrono::steady_clock::duration duration, size_t new_loot_number) {
 
 	ItemGatherer gatherer(offices_, loots_);
-
+	// int i = 0;
 	// move all dogs
 	for (auto& dog : dogs_) {
 		model::Dimension distance = dog.GetSpeed() * std::chrono::duration<double>(duration).count();
@@ -219,8 +219,8 @@ void Map::Act(std::chrono::steady_clock::duration duration, size_t new_loot_numb
 		auto new_pos = MoveDog(dog, distance);
 		dog.Tick(duration);
 #ifdef MYDEBUG
-		std::cerr << "Dog move " << start_pos.x << "," << start_pos.y << " " << new_pos.x << "," << new_pos.y
-				  << std::endl;
+		// std::cerr << "Dog move " << start_pos.x << "," << start_pos.y << " " << new_pos.x << "," << new_pos.y
+		// 		  << std::endl;
 #endif
 		gatherer.AddGatherer(&dog, {start_pos.x, start_pos.y}, {new_pos.x, new_pos.y} /*, dog.GetWidth()*/);
 	}
@@ -228,7 +228,7 @@ void Map::Act(std::chrono::steady_clock::duration duration, size_t new_loot_numb
 	auto events = collision_detector::FindGatherEvents(gatherer);
 
 	// loot idx that has been already captured form road
-	set<size_t, std::greater<size_t>> captured_item_indexes;
+	set<size_t, std::greater<size_t>> captured_loot_indexes;
 	for (auto event : events) {
 
 		if (gatherer.IsIdxIsOfficeIdx(event.item_id)) {
@@ -236,19 +236,23 @@ void Map::Act(std::chrono::steady_clock::duration duration, size_t new_loot_numb
 			auto dog = gatherer.GetDog(event.gatherer_id);
 			dog->GetScoreAndFreeBag();
 
-		} else if (!captured_item_indexes.contains(event.item_id)) {
+		} else if (!captured_loot_indexes.contains(event.item_id)) {
 			// if collision not with office, so its loot
 			auto dog = gatherer.GetDog(event.gatherer_id);
 			if (dog->HasBagFreeSpace()) {
 				auto loot = gatherer.GetLootByItemIdx(event.item_id);
 				dog->AddLoot(loot);
-				captured_item_indexes.insert(event.item_id);
+				// captured_loot_indexes.insert(event.item_id);
+				captured_loot_indexes.insert(gatherer.EventIdToLootId(event.item_id));
 			}
 		}
 	}
 
 	// remove loot from map
-	for (auto captured_loot_idx : captured_item_indexes) {
+	for (auto captured_loot_idx : captured_loot_indexes) {
+#ifdef MYDEBUG
+		std::cerr << "Remove loot index -> " << captured_loot_idx << std::endl;
+#endif
 		loots_.erase(loots_.begin() + captured_loot_idx);
 	}
 
@@ -400,6 +404,7 @@ Direction Dog::GetDirection() const {
 
 void Dog::SetDirection(model::Direction direction) {
 	direction_ = direction;
+	Start();
 }
 
 void Dog::SetPosition(const Point pos) {
@@ -541,6 +546,11 @@ Dog* ItemGatherer::GetDog(size_t idx) {
 const Loot& ItemGatherer::GetLootByItemIdx(size_t idx) const {
 	assert(idx >= offices_.size());
 	return loots_[idx - offices_.size()];
+}
+
+size_t ItemGatherer::EventIdToLootId(size_t idx) const {
+	assert(idx >= offices_.size());
+	return idx - offices_.size();
 }
 
 

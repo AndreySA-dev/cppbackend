@@ -326,6 +326,7 @@ class ItemGatherer : public collision_detector::ItemGathererProvider {
 	bool IsIdxIsOfficeIdx(size_t idx) const;
 	Dog* GetDog(size_t idx);
 	const Loot& GetLootByItemIdx(size_t idx) const;
+	size_t EventIdToLootId(size_t idx) const;
 
   private:
 	const Map::Offices& offices_;
