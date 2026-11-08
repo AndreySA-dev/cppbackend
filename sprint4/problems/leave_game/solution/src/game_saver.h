@@ -9,22 +9,6 @@ namespace net = boost::asio;
 
 namespace saver {
 
-// void SaveState(std::shared_ptr<game_handler::GameHandler> game_h, fs::path file_path, net::io_context& ioc /*,
-// 	net::strand<net::io_context::executor_type>& game_strand */);
-
-// void LoadState(std::shared_ptr<game_handler::GameHandler> game_h, fs::path file_path, net::io_context& ioc /*,
-// 	net::strand<net::io_context::executor_type>& game_strand */);
-
-// class IStateSaver {
-
-//   public:
-// 	virtual void SaveState() = 0;
-// 	virtual void LoadState() = 0;
-
-//   private:
-// 	game_handler::GameHandler& game_h_;
-// };
-
 class FileSaver {
   public:
 	FileSaver(game_handler::GameHandler& game_h, fs::path save_path, net::io_context& ioc);

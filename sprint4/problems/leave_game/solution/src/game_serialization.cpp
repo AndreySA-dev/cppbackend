@@ -12,7 +12,6 @@ LootRepr::LootRepr(const model::Loot& loot) : loot_id_(loot.id), position_(loot.
 }
 
 model::Loot LootRepr::Restore(const model::Map& map) const {
-	// auto loot_type = map.GetLootType(loot_type_name_);
 	auto loot_type = map.GetLootType(loot_type_id_);
 	if (!loot_type) {
 		throw std::out_of_range("Loot error. No loot_type id '" + std::to_string(*loot_type_id_) + "'");
@@ -32,7 +31,7 @@ DogRepr::DogRepr(const model::Dog& dog /*, const model::Map* map */)
 	for (const auto& loot : dog.GetBag()) { // TO-DO: use std::transform
 		bag_.push_back(LootRepr(loot));
 	}
-	// std::transform(dog.GetBag().begin(), dog.GetBag().end(), std::back_inserter(bag_), //  <<<---- BUG !!!
+	// std::transform(dog.GetBag().begin(), dog.GetBag().end(), std::back_inserter(bag_), // <- BUG with transform, using for instead !!!
 	// 	[](const auto& loot) { return LootRepr(loot); });
 }
 

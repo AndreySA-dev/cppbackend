@@ -18,9 +18,7 @@ class Authenticator {
 	Authenticator(model::Game& game);
 	std::pair<token::Token, Code> AddUser(std::string_view name, model::Map::Id map_id);
 	std::pair<user::User*, Code> GetUser(token::Token token);
-	// std::pair<user::User*, Code> GetUser(token::Token token);
 	std::pair<const user::User*, Code> GetUser(token::Token token) const;
-	// user::Users& GetUsers();
 	const user::Users& GetUsers() const;
 	const user::User* GetUser(user::User::Id id) const;
 	bool TokenIsCorrect(const token::Token& token) const;

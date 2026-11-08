@@ -61,67 +61,33 @@ model::Dog* User::GetUserDog() {
 
 
 User* Users::AddUser(std::string_view name) {
-
 	return AddUser(user::User(std::string(name)));
-
-	// const size_t idx = users_.size();
-	// decltype(user_id_to_index_.emplace()) add_id_idx_result;
-	// decltype(user_name_to_index_.emplace()) add_name_idx_result;
-
-	// try {
-
-	// 	auto& new_player = users_.emplace_back(std::string(name));
-	// 	add_id_idx_result = user_id_to_index_.emplace(new_player.GetId(), idx);
-	// 	add_name_idx_result = user_name_to_index_.emplace(new_player.GetName(), idx);
-
-	// 	return &new_player;
-
-	// } catch (...) {
-
-	// 	user_id_to_index_.erase(add_id_idx_result.first);
-	// 	user_name_to_index_.erase(add_name_idx_result.first);
-	// 	throw;
-	// }
-
-	// return nullptr;
 }
 
 User* Users::AddUser(user::User&& user) {
-	// const size_t idx = users_.size();
-	// decltype(user_id_to_index_.emplace()) add_id_idx_result;
-	// decltype(user_name_to_index_.emplace()) add_name_idx_result;
 	decltype(user_id_to_it_.emplace()) add_id_it_result;
-	// decltype(user_name_to_it_.emplace()) add_name_it_result;
-
 	try {
 		auto user_id = user.GetId();
-		// auto& new_player = users_.emplace_back(std::move(user));
 		auto new_player_it = users_.insert(users_.end(), std::move(user));
 		add_id_it_result = user_id_to_it_.emplace(new_player_it->GetId(), new_player_it);
 		if (!add_id_it_result.second) {
 			throw std::logic_error("Add user error: User with id " + std::to_string(*user_id) + " already exit.");
 		}
-		// add_name_it_result = user_name_to_it_.emplace(new_player_it->GetName(), new_player_it);
 
 		return &*new_player_it;
 	} catch (...) {
 		user_id_to_it_.erase(add_id_it_result.first);
-		// user_name_to_it_.erase(add_name_it_result.first);
 		throw;
 	}
 	return nullptr;
 }
 
 User* Users::GetUser(User::Id id) {
-	// auto it = user_id_to_index_.find(id);
-	// return it != user_id_to_index_.cend() ? &users_[it->second] : nullptr;
 	auto it = user_id_to_it_.find(id);
 	return it != user_id_to_it_.cend() ? &*it->second : nullptr;
 }
 
 const User* Users::GetUser(User::Id id) const {
-	// auto it = user_id_to_index_.find(id);
-	// return it != user_id_to_index_.cend() ? &users_[it->second] : nullptr;
 	auto it = user_id_to_it_.find(id);
 	return it != user_id_to_it_.cend() ? &*it->second : nullptr;
 }
@@ -130,10 +96,8 @@ void Users::RetireUser(user::User::Id id) {
 	auto user_ptr = GetUser(id);
 	if (user_ptr) {
 		auto id_idx_it = user_id_to_it_.find(id);
-		// auto name_idx_it = user_name_to_it_.find(user_ptr->GetName());
 		users_.erase(id_idx_it->second);
 		user_id_to_it_.erase(id_idx_it);
-		// user_name_to_it_.erase(name_idx_it);
 	}
 }
 

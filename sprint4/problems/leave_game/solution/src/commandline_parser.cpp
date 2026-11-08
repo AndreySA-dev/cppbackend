@@ -20,8 +20,7 @@ std::optional<Args> ParseCommandLine(int argc, const char* argv[]) {
 		("state-file", po::value(&args.state_file)->value_name("path to file with saved state"), "file with saved state of game") //
 		("save-state-period", po::value(&args.save_state_period)->value_name("path to file with saved state"), "save period")
 		("auto-stop-after", po::value(&args.auto_stop_after_sec)->value_name("auto stop after n second"), "auto stop after n second") //
-		("db_url", po::value(&args.db_url)->value_name("URL for connect to database"), "URL for connect to database") //
-		("no-db", po::bool_switch(&args.no_db), "Enable ability work withput database"); //
+		("db_url", po::value(&args.db_url)->value_name("URL for connect to database"), "URL for connect to database");
 
 	po::variables_map vm;
 	po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -41,9 +40,7 @@ std::optional<Args> ParseCommandLine(int argc, const char* argv[]) {
 	if (!vm.contains("www-root"s)) {
 		throw std::runtime_error("Not specified www-root argument"s);
 	}
-	// if (!args.no_db && !vm.contains("db_url"s)) {
-	// 	throw std::runtime_error("Not specified db-url argument"s);
-	// }
+
 
 	return args;
 }

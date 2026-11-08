@@ -56,18 +56,6 @@ pair<json::value, game::Code> GameHandler::HandleGameJoinRequest(std::string_vie
 		if (is_random_dog_spawn_) {
 			// generate Dog random position in random road
 			dog_pos = map_ptr->GetRandPosOnRoad();
-			// auto& road = map_ptr->GetRoads()[helper::GetRandomNum<int>(0, map_ptr->GetRoads().size())];
-			// auto road_len = road.GetLength();
-			// if (road_len > 0) {
-			// 	model::Dimension shift = helper::GetRandomNum<model::Dimension>(0.0, road_len);
-			// 	if (road.IsHorizontal()) {
-			// 		dog_pos.x = std::min(road.GetStart().x, road.GetEnd().x) + shift;
-			// 		dog_pos.y = road.GetStart().y;
-			// 	} else {
-			// 		dog_pos.y = std::min(road.GetStart().y, road.GetEnd().y) + shift;
-			// 		dog_pos.x = road.GetStart().x;
-			// 	}
-			// }
 		} else {
 			dog_pos = map_ptr->GetRoads()[0].GetStart();
 		}
@@ -87,11 +75,8 @@ pair<json::value, game::Code> GameHandler::HandleGetPlayersRequest() const {
 
 	json::object jo;
 
-	// size_t i = 0;
 	for (const auto& player : authenticator_.GetUsers()) {
-		// string id_str = std::to_string(i);
 		jo.emplace(std::to_string(*player.GetId()), json::object{{"name"s, player.GetName()}});
-		// ++i;
 	}
 
 	return {jo, game::Code::OK};
@@ -217,12 +202,6 @@ void GameHandler::UpdateState(std::chrono::steady_clock::duration duration) {
 
 		for (const auto& id : to_retire_ids) {
 #ifdef MYDEBUG
-			// std::cerr << "Retire - " << *id << endl;
-			// std::cerr << "Retire - " << *id << endl;
-			// std::cerr << "Retire - " << *id << endl;
-			// std::cerr << "Retire - " << *id << endl;
-			// std::cerr << "Retire - " << *id << endl;
-			// std::cerr << "Retire - " << *id << endl;
 			// std::cerr << "Retire - " << *id << endl;
 #endif
 			map.RetireDog(model::Dog::Id(*id));

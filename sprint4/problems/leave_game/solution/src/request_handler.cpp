@@ -345,12 +345,14 @@ StringResponse RequestHandler::HandleHttpDBRetiredPlayers(HTTPRequest req) {
 		if (query_params.contains("start")) {
 			try {
 				start_record = std::stoul(query_params.at("start"));
-			} catch (...) {}
+			} catch (const std::invalid_argument&) {
+			} catch (const std::out_of_range&) {}
 		}
 		if (query_params.contains("maxItems")) {
 			try {
 				max_records = std::stoul(query_params.at("maxItems"));
-			} catch (...) {}
+			} catch (const std::invalid_argument&) {
+			} catch (const std::out_of_range&) {}
 		}
 	}
 

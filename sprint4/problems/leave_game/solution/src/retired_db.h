@@ -45,7 +45,6 @@ class DB : public std::enable_shared_from_this<DB> {
 
 		bool SaveRetired(const gh::GameHandler::RetiredPlayers&& retired);
 		gh::GameHandler::RetiredPlayers LoadRetired(size_t start_record = 1, size_t max_records = 0);
-		// void Commit();
 
 		~Transaction();
 

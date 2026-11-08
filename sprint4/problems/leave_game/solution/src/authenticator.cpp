@@ -47,10 +47,6 @@ std::pair<const user::User*, Code> Authenticator::GetUser(token::Token token) co
 											   : pair{nullptr, Code::PLAYER_NOT_FOUND};
 }
 
-// user::Users& Authenticator::GetUsers() {
-// 	return users_;
-// }
-
 const user::Users& Authenticator::GetUsers() const {
 	return users_;
 }

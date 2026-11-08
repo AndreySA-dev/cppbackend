@@ -109,10 +109,6 @@ gh::GameHandler::RetiredPlayers DB::Transaction::LoadRetired(size_t start_record
 	return result;
 }
 
-// void DB::UnitOfWork::Commit() {
-// 	work_.commit();
-// }
-
 DB::Transaction::~Transaction() {
 	// unblock connection in DB
 	if (op_type_ == DB::OperationType::READ) {
@@ -128,22 +124,18 @@ DBRetiredPlayerSaverListener::DBRetiredPlayerSaverListener(DB::Ptr db, gh::GameH
 void DBRetiredPlayerSaverListener::OnTick([[maybe_unused]] std::chrono::milliseconds duration) {
 
 	if (game_hndl_.HasRetired()) {
-		// auto p = db_->GetWriteUnitOfWorkPtr();
-		// auto write_functor = [write_unit = std::move(p), players = std::move(game_hndl_.PopRetired())]() {
-		// 	write_unit->SaveRetired(std::move(players));
-		// };
+
 		auto transaction = db_->GetWriteTransaction();
 		transaction.SaveRetired(game_hndl_.PopRetired());
 
-
-		// 		if (!ioc_.stopped()) {
-		// #ifdef MYDEBUG
-		// 			// auto now = std::chrono::system_clock::now();
-		// 			// std::time_t t = std::chrono::system_clock::to_time_t(now);
-		// 			// std::cerr << std::ctime(&t) << ". Async save retired players" << std::endl;
-		// #endif
-		// 			net::post(write_strand_, std::move(write_functor));
-		// 		}
+		// Tests require immediately recording in DB?, asyc deffered not supported
+		// auto write_functor = [transaction = db_->GetWriteTransaction(),
+		// 						 players = std::move(game_hndl_.PopRetired())]() mutable {
+		// 	transaction.SaveRetired(std::move(players));
+		// };
+		// if (!ioc_.stopped()) {
+		// 	net::post(write_strand_, std::move(write_functor));
+		// }
 	}
 }
 

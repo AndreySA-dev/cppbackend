@@ -156,14 +156,6 @@ class RequestHandler : public std::enable_shared_from_this<RequestHandler> {
 			
 			return net::dispatch(game_hndl_->GetStrand(), std::move(api_handler_lambda));
 
-			// if (target == RequestsTexts::API_GAME_RECORDS) {
-			// 	// request to DB
-			// 	return net::dispatch(db_->GetStrand(), std::move(api_handler_lambda));
-			// } else {
-			// 	// request to game hanler
-			// 	return net::dispatch(game_hndl_->GetStrand(), std::move(api_handler_lambda));
-			// }
-
 		} else {
 			// request to static file
 			std::visit(

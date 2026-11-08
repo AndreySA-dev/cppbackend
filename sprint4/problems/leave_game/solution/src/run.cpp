@@ -78,10 +78,8 @@ void Run(const start_opt::Args& run_options) {
 	loot_gen::LootGenerator loot{std::chrono::milliseconds(static_cast<int>(game.GetLootSpawnPeriod() * 1000)),
 		game.GetLootSpawnProbability() /*, []() { return helper::GetRandomNum(0.0, 1.0);  }*/};
 
-
 	auto game_hndl = std::make_shared<game_handler::GameHandler>(
 		game, ioc, run_options.tick_period, run_options.is_random_spawn, std::move(loot));
-
 
 	// SECTION. Save game state to file ===================================================================
 	bool do_save_state = !run_options.state_file.empty();

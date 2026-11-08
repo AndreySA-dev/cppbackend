@@ -74,13 +74,8 @@ class Users {
 	Users(const Users&) = delete;
 	Users& operator=(const Users&) = delete;
 
-	// std::deque<User> users_;
 	Container users_;
-	// std::unordered_map<User::Id, size_t, User::IdHasher> user_id_to_index_;
-	// std::unordered_map<std::string_view, User::Id> user_name_to_index_;
 	std::unordered_map<User::Id, Container::iterator, User::IdHasher> user_id_to_it_;
-	// std::unordered_map<std::string_view, Container::iterator> user_name_to_it_;
-
 	token::TokenHandler generator_;
 };
 

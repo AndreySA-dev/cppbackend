@@ -33,14 +33,12 @@ class LootRepr {
 	template <typename Archive>
 	void serialize(Archive& arch, [[maybe_unused]] const unsigned version) {
 		arch&* loot_id_;
-		// arch & loot_type_name_;
 		arch & *loot_type_id_;
 		arch & position_;
 	}
 
   private:
 	model::Loot::Id loot_id_ = model::Loot::noid;
-	// std::string loot_type_name_;
 	model::LootType::Id loot_type_id_{model::LootType::noid};
 	model::Point position_;
 };
