@@ -1,7 +1,8 @@
 # Не просто создаём образ, но даём ему имя build
 FROM gcc:11.3 as build
 
-RUN apt update && \
+RUN sed -i '/security/d' /etc/apt/sources.list && \
+	apt update && \
     apt install -y \
       python3-pip \
       cmake \
