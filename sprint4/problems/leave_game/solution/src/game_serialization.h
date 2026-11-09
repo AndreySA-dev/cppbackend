@@ -2,8 +2,8 @@
 #pragma once
 #include "authenticator.h"
 #include "model.h"
-#include "user.h"
 #include "token.h"
+#include "user.h"
 #include <boost/serialization/vector.hpp>
 
 namespace model {
@@ -27,13 +27,13 @@ class LootRepr {
 	LootRepr& operator=(const LootRepr&) = default;
 	LootRepr& operator=(LootRepr&&) = default;
 
-	explicit LootRepr(const model::Loot& loot /*, const model::Map* map */);
+	explicit LootRepr(const model::Loot& loot);
 	model::Loot Restore(const model::Map& map) const;
 
 	template <typename Archive>
 	void serialize(Archive& arch, [[maybe_unused]] const unsigned version) {
 		arch&* loot_id_;
-		arch & *loot_type_id_;
+		arch&* loot_type_id_;
 		arch & position_;
 	}
 
@@ -51,7 +51,7 @@ class DogRepr {
 	DogRepr& operator=(const DogRepr&) = default;
 	DogRepr& operator=(DogRepr&&) = default;
 
-	explicit DogRepr(const model::Dog& dog /*, const model::Map* map */);
+	explicit DogRepr(const model::Dog& dog);
 	const model::Dog& Restore(model::Map& map);
 
 	template <typename Archive>
@@ -95,7 +95,7 @@ class MapRepr {
 	void serialize(Archive& arch, [[maybe_unused]] const unsigned version) {
 		arch & loots_;
 		arch & dogs_;
-		arch & *map_id_;
+		arch&* map_id_;
 		arch & next_id_;
 	}
 
@@ -146,9 +146,9 @@ class OnlinePlayerRepr {
 	template <typename Archive>
 	void serialize(Archive& arch, [[maybe_unused]] const unsigned version) {
 		arch & name_;
-		arch & *id_;
-		arch & *map_id_;
-		arch & *token_;
+		arch&* id_;
+		arch&* map_id_;
+		arch&* token_;
 	}
 
   private:

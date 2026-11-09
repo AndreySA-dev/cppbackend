@@ -24,15 +24,13 @@ model::Loot LootRepr::Restore(const model::Map& map) const {
 }
 
 
-DogRepr::DogRepr(const model::Dog& dog /*, const model::Map* map */)
+DogRepr::DogRepr(const model::Dog& dog)
 	: position_(dog.GetPosition()), speed_(dog.GetSpeed()), direction_(dog.GetDirection()), on_move_(dog.IsMove()),
 	  dog_id_(dog.GetId()), bag_capa_(dog.GetBagCapacity()), score_(dog.GetScore()) {
 	bag_.reserve(dog.GetBag().size());
 	for (const auto& loot : dog.GetBag()) { // TO-DO: use std::transform
 		bag_.push_back(LootRepr(loot));
 	}
-	// std::transform(dog.GetBag().begin(), dog.GetBag().end(), std::back_inserter(bag_), // <- BUG with transform, using for instead !!!
-	// 	[](const auto& loot) { return LootRepr(loot); });
 }
 
 const model::Dog& DogRepr::Restore(model::Map& map) {

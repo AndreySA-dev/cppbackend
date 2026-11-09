@@ -2,7 +2,6 @@
 #include "helper.h"
 
 #include <algorithm>
-#include <cassert>
 #include <ranges>
 #include <set>
 #include <stdexcept>
@@ -70,21 +69,11 @@ const Map::Offices& Map::GetOffices() const noexcept {
 }
 
 Dog& Map::AddDog(Dog::Id id) {
-
-	// if (dog_id_to_idx_.contains(id)) {
-	// 	throw std::invalid_argument("Duplicate dog");
-	// }
 	if (dog_id_to_it_.contains(id)) {
 		throw std::invalid_argument("Duplicate dog id");
 	}
-
-	// const size_t idx = dogs_.size();
-
-	// Dog& new_dog = dogs_.emplace_back(id, *dog_bag_capa_);
 	auto new_dog_it = dogs_.insert(dogs_.end(), {id, *dog_bag_capa_});
-
 	try {
-		// dog_id_to_idx_.emplace(new_dog.GetId(), idx);
 		dog_id_to_it_.emplace(new_dog_it->GetId(), new_dog_it);
 		dog_to_road_idx_.clear();
 	} catch (...) {
@@ -93,7 +82,6 @@ Dog& Map::AddDog(Dog::Id id) {
 	}
 
 	if (GetDogDefaultSpeed()) {
-		// new_dog.SetSpeed(*GetDogDefaultSpeed());
 		new_dog_it->SetSpeed(*GetDogDefaultSpeed());
 	}
 
@@ -101,15 +89,11 @@ Dog& Map::AddDog(Dog::Id id) {
 }
 
 Dog* Map::GetDog(Dog::Id id) {
-	// auto it = dog_id_to_idx_.find(id);
-	// return it != dog_id_to_idx_.cend() ? &dogs_[it->second] : nullptr;
 	auto it = dog_id_to_it_.find(id);
 	return it != dog_id_to_it_.cend() ? &*it->second : nullptr;
 }
 
 const Dog* Map::GetDog(Dog::Id id) const {
-	// auto it = dog_id_to_idx_.find(id);
-	// return it != dog_id_to_idx_.cend() ? &dogs_[it->second] : nullptr;
 	auto it = dog_id_to_it_.find(id);
 	return it != dog_id_to_it_.cend() ? &*it->second : nullptr;
 }
@@ -128,10 +112,6 @@ bool Map::RetireDog(Dog::Id id) {
 const Map::Dogs& Map::GetDogs() const noexcept {
 	return dogs_;
 }
-
-// Map::Dogs& Map::GetDogs() noexcept {
-// 	return dogs_;
-// }
 
 void Map::AddLootType(LootType loot_type) {
 	size_t idx = loot_types_.size();
@@ -180,10 +160,6 @@ const Map::Loots& Map::GetLoots() const {
 	return loots_;
 }
 
-// Map::Loots& Map::GetLoots() {
-// 	return loots_;
-// }
-
 size_t Map::GetLootCount() const {
 	return loots_.size();
 }
@@ -211,18 +187,16 @@ size_t Map::GetDogCount() const {
 void Map::Act(std::chrono::steady_clock::duration duration, size_t new_loot_number) {
 
 	ItemGatherer gatherer(offices_, loots_);
-	// int i = 0;
-	// move all dogs
 	for (auto& dog : dogs_) {
 		model::Dimension distance = dog.GetSpeed() * std::chrono::duration<double>(duration).count();
 		auto start_pos = dog.GetPosition();
 		auto new_pos = MoveDog(dog, distance);
 		dog.Tick(duration);
 #ifdef MYDEBUG
-		// std::cerr << "Dog move " << start_pos.x << "," << start_pos.y << " " << new_pos.x << "," << new_pos.y
-		// 		  << std::endl;
+		std::cerr << "Dog move " << start_pos.x << "," << start_pos.y << " " << new_pos.x << "," << new_pos.y
+				  << std::endl;
 #endif
-		gatherer.AddGatherer(&dog, {start_pos.x, start_pos.y}, {new_pos.x, new_pos.y} /*, dog.GetWidth()*/);
+		gatherer.AddGatherer(&dog, {start_pos.x, start_pos.y}, {new_pos.x, new_pos.y});
 	}
 
 	auto events = collision_detector::FindGatherEvents(gatherer);
@@ -264,7 +238,6 @@ void Map::Act(std::chrono::steady_clock::duration duration, size_t new_loot_numb
 		// random loot type and random position
 		LootType::Id type_id{helper::GetRandomNum<size_t>(0, GetLootTypeCount())};
 		auto pos = GetRandPosOnRoad();
-		// Point pos{10, 0};
 #ifdef MYDEBUG
 		cerr << "New loot " << pos.x << "x" << pos.y << endl;
 #endif
@@ -544,12 +517,10 @@ Dog* ItemGatherer::GetDog(size_t idx) {
 }
 
 const Loot& ItemGatherer::GetLootByItemIdx(size_t idx) const {
-	assert(idx >= offices_.size());
 	return loots_[idx - offices_.size()];
 }
 
 size_t ItemGatherer::EventIdToLootId(size_t idx) const {
-	assert(idx >= offices_.size());
 	return idx - offices_.size();
 }
 
@@ -610,12 +581,12 @@ void Game::SetBagDefaultCapacity(std::optional<size_t> capacity) {
 }
 
 void Game::SetLootSpawnPreiod(double seconds) {
-	loot_spawn_period_ = seconds;
+	loot_spawn_period_sec_ = seconds;
 }
 
 
-double Game::GetLootSpawnPeriod() const {
-	return loot_spawn_period_;
+double Game::GetLootSpawnPeriodSec() const {
+	return loot_spawn_period_sec_;
 }
 
 

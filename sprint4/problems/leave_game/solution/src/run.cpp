@@ -8,15 +8,13 @@
 #include "model.h"
 #include "request_handler.h"
 #include "retired_db.h"
+#include <iostream>
 
 
 namespace run {
 
 using namespace std::literals;
 namespace net = boost::asio;
-// namespace sys = boost::system;
-// namespace json = boost::json;
-
 
 namespace {
 
@@ -46,7 +44,7 @@ void Run(const start_opt::Args& run_options) {
 	const unsigned num_threads = std::thread::hardware_concurrency();
 	net::io_context ioc(num_threads);
 
-	
+
 #ifdef MYDEBUG
 	net::steady_timer auto_stop_timer{ioc};
 	if (run_options.auto_stop_after_sec != 0) {
@@ -65,7 +63,7 @@ void Run(const start_opt::Args& run_options) {
 
 	// handling signals (ctrl+c ctrl+d etc..)
 	net::signal_set signals(ioc, SIGINT, SIGTERM);
-	signals.async_wait([&ioc /*, game_hndl*/](const sys::error_code& ec, [[maybe_unused]] int signal_number) {
+	signals.async_wait([&ioc](const sys::error_code& ec, [[maybe_unused]] int signal_number) {
 		if (!ec) {
 			std::cout << "Signal "sv << signal_number << " received"sv << std::endl;
 			ioc.stop();
@@ -75,8 +73,10 @@ void Run(const start_opt::Args& run_options) {
 	});
 
 	// loot generator
-	loot_gen::LootGenerator loot{std::chrono::milliseconds(static_cast<int>(game.GetLootSpawnPeriod() * 1000)),
-		game.GetLootSpawnProbability() /*, []() { return helper::GetRandomNum(0.0, 1.0);  }*/};
+	// auto a = std::chrono::duration<double>(10.0);
+	const auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+		std::chrono::duration<double>(game.GetLootSpawnPeriodSec()));
+	loot_gen::LootGenerator loot{duration_ms, game.GetLootSpawnProbability()};
 
 	auto game_hndl = std::make_shared<game_handler::GameHandler>(
 		game, ioc, run_options.tick_period, run_options.is_random_spawn, std::move(loot));
@@ -120,8 +120,8 @@ void Run(const start_opt::Args& run_options) {
 		game_hndl->StartTick();
 	}
 
-	auto http_handler = std::make_shared<http_handler::RequestHandler>(
-		game, game_hndl, retired_db, run_options.www_root_dir /*, ioc */);
+	auto http_handler =
+		std::make_shared<http_handler::RequestHandler>(game, game_hndl, retired_db, run_options.www_root_dir);
 
 	http_handler::LoggingRequestHandler logging_handler{http_handler};
 

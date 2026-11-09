@@ -4,12 +4,12 @@
 
 #include <chrono>
 #include <limits>
+#include <list>
 #include <optional>
 #include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
-#include <list>
 
 namespace model {
 
@@ -40,12 +40,6 @@ struct Rectangle {
 struct Offset {
 	Dimension dx, dy;
 };
-
-// struct Color {
-// 	char red = 0;
-// 	char green = 0;
-// 	char blue = 0;
-// };
 
 using Color = std::string;
 
@@ -108,6 +102,7 @@ class Building {
 
 
 class Office {
+	static inline const Dimension DEFAULT_OFFICE_WIDTH = 0.5;
   public:
 	using Id = util::Tagged<std::string, Office>;
 
@@ -133,16 +128,17 @@ class Office {
 	Id id_;
 	Point position_;
 	Offset offset_;
-	static inline const Dimension width_{0.5};
+	const Dimension width_{DEFAULT_OFFICE_WIDTH};
 };
 
 
 class Dog {
+	static inline const Dimension DEFAULT_DOG_WIDTH = 0.6;
   public:
 	using Id = util::Tagged<size_t, Dog>;
 	using Duration = std::chrono::steady_clock::duration;
 	static inline const Id noid{std::numeric_limits<Id::ValueType>::max()};
-	
+
 	Dog(Id id, size_t bag_capacity);
 	Id GetId() const;
 	Point GetPosition() const;
@@ -188,7 +184,7 @@ class Dog {
 	std::chrono::steady_clock::duration in_game_duration = 0s;
 	std::chrono::steady_clock::duration idle_duration = 0s;
 
-	static inline const Dimension width_{0.6};
+	const Dimension width_{DEFAULT_DOG_WIDTH};
 };
 
 
@@ -224,8 +220,6 @@ class Map {
 	using Roads = std::vector<Road>;
 	using Buildings = std::vector<Building>;
 	using Offices = std::vector<Office>;
-	// using Dogs = std::vector<Dog>;
-	// using Dogs = std::unordered_map<Dog::Id, Dog, util::TaggedHasher<Dog::Id>>;
 	using Dogs = std::list<Dog>;
 	using LootTypes = std::vector<LootType>;
 	using Loots = std::vector<Loot>;
@@ -278,12 +272,9 @@ class Map {
 
   private:
 	using OfficeIdToIndex = std::unordered_map<Office::Id, size_t, util::TaggedHasher<Office::Id>>;
-	// using DogIdToIndex = std::unordered_map<Dog::Id, size_t, util::TaggedHasher<Dog::Id>>;
 	using DogIdToIter = std::unordered_map<Dog::Id, Dogs::iterator, util::TaggedHasher<Dog::Id>>;
 	using DogToRoadIdx = std::unordered_map<Dog*, const Road*>;
 	using LootTypeNameToIdx = std::unordered_map<std::string, size_t>;
-
-	// Dogs& GetDogs() noexcept;
 
 	// move dog and return new position
 	Point MoveDog(Dog& dog, Dimension distance);
@@ -297,7 +288,6 @@ class Map {
 	OfficeIdToIndex warehouse_id_to_index_;
 	Offices offices_;
 
-	// DogIdToIndex dog_id_to_idx_;
 	DogIdToIter dog_id_to_it_;
 	DogToRoadIdx dog_to_road_idx_;
 	Dogs dogs_;
@@ -317,7 +307,7 @@ namespace cld = collision_detector;
 class ItemGatherer : public collision_detector::ItemGathererProvider {
   public:
 	ItemGatherer(const Map::Offices& offices, const Map::Loots& loots);
-	void AddGatherer(Dog* dog, geom::Point2D from, geom::Point2D to /*, double width*/);
+	void AddGatherer(Dog* dog, geom::Point2D from, geom::Point2D to);
 
 	size_t ItemsCount() const override;
 	cld::Item GetItem(size_t idx) const override;
@@ -355,7 +345,7 @@ class Game {
 	void SetBagDefaultCapacity(std::optional<size_t> capacity);
 
 	void SetLootSpawnPreiod(double seconds);
-	double GetLootSpawnPeriod() const;
+	double GetLootSpawnPeriodSec() const;
 	void SetLootSpawnProbability(double probabiluty);
 	double GetLootSpawnProbability() const;
 
@@ -363,7 +353,7 @@ class Game {
 
 	Duration GetDogRetirementTime() const;
 	void SetDogRetirementTime(double seconds);
-	
+
 
   private:
 	using MapIdHasher = util::TaggedHasher<Map::Id>;
@@ -373,7 +363,7 @@ class Game {
 	MapIdToIndex map_id_to_index_;
 	std::optional<Speed> dog_default_speed_ = std::nullopt;
 
-	double loot_spawn_period_ = 0.0;
+	double loot_spawn_period_sec_ = 0.0;
 	double loot_spawn_probability_ = 0.0;
 
 	std::optional<size_t> bag_default_capa_ = 3;

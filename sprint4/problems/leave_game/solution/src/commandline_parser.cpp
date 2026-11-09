@@ -1,5 +1,4 @@
 #include "commandline_parser.h"
-
 #include <iostream>
 
 namespace start_opt {

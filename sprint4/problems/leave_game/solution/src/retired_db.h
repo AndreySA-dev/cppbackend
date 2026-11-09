@@ -30,7 +30,6 @@ class DB : public std::enable_shared_from_this<DB> {
 
 	Transaction GetReadTransaction();
 	Transaction GetWriteTransaction();
-	// std::shared_ptr<Transaction> GetTransactionPtr();
 	net::strand<net::io_context::executor_type>& GetStrand();
 
   private:

@@ -131,8 +131,7 @@ class RequestHandler : public std::enable_shared_from_this<RequestHandler> {
 	using GameHandlerPtr = std::shared_ptr<game_handler::GameHandler>;
 	using DBPtr = db::DB::Ptr;
 
-	explicit RequestHandler(
-		model::Game& game, GameHandlerPtr game_hndl, DBPtr db, const std::string& root_path /*, net::io_context& ctx*/);
+	explicit RequestHandler(model::Game& game, GameHandlerPtr game_hndl, DBPtr db, const std::string& root_path);
 
 	using HTTPRequest = http::request<http::string_body>;
 
@@ -153,7 +152,7 @@ class RequestHandler : public std::enable_shared_from_this<RequestHandler> {
 				resp.keep_alive(req.keep_alive());
 				send(std::move(resp));
 			};
-			
+
 			return net::dispatch(game_hndl_->GetStrand(), std::move(api_handler_lambda));
 
 		} else {

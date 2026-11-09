@@ -9,7 +9,6 @@ using namespace std;
 using namespace std::literals;
 
 size_t User::next_id_ = 0;
-// User::Id User::noid = User::Id{std::numeric_limits<size_t>::max()};
 
 User::User(std::string name) : name_{std::move(name)}, id_{User::Id(next_id_++)} {}
 

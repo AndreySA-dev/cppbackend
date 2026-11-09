@@ -2,7 +2,6 @@
 #define PERF_TIMER_H
 
 #include <chrono>
-#include <iostream>
 
 template <typename duration_t>
 class perf_timer {
@@ -16,7 +15,7 @@ class perf_timer {
 
 	perf_timer(const perf_timer&) = default;
 	perf_timer& operator=(const perf_timer&) = default;
-	
+
 	perf_timer(perf_timer&& other) = default;
 	perf_timer& operator=(perf_timer&&) = default;
 
@@ -38,11 +37,11 @@ class perf_timer {
 	}
 
 	int64_t get_duration() const {
-		if (is_started)
+		if (is_started) {
 			return (duration + std::chrono::duration_cast<duration_t>(std::chrono::steady_clock::now() - start_point))
 				.count();
-		else
-			return duration.count();
+		}
+		return duration.count();
 	};
 
   private:

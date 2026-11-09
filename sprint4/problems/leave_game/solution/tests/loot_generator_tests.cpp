@@ -424,7 +424,7 @@ SCENARIO("Game config load and check LootType parameters") {
 				REQUIRE_NOTHROW(game = json_loader::LoadGame(json_stream, ""));
 				
 				REQUIRE(game.GetMaps().size() == 2);
-				CHECK(game.GetLootSpawnPeriod() == 5.000);
+				CHECK(game.GetLootSpawnPeriodSec() == 5.000);
 				CHECK(game.GetLootSpawnProbability() == 0.5);
 
 				CHECK((game.FindMap(model::Map::Id{"map1"})->GetLootTypes().size()) == 2);

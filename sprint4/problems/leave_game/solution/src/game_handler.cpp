@@ -48,7 +48,6 @@ pair<json::value, game::Code> GameHandler::HandleGameJoinRequest(std::string_vie
 		}
 
 		auto player_id = player_ptr->GetId();
-		// add dog with same Id as UserId
 		auto& new_dog = map_ptr->AddDog(model::Dog::Id(*player_id));
 
 		model::Point dog_pos = {0, 0};
@@ -202,7 +201,7 @@ void GameHandler::UpdateState(std::chrono::steady_clock::duration duration) {
 
 		for (const auto& id : to_retire_ids) {
 #ifdef MYDEBUG
-			// std::cerr << "Retire - " << *id << endl;
+			std::cerr << "Retire - " << *id << endl;
 #endif
 			map.RetireDog(model::Dog::Id(*id));
 			authenticator_.RetirePlayer(id);

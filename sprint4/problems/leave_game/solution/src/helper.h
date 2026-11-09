@@ -26,7 +26,7 @@ T GetRandomNum(T min, T max) {
 }
 
 
-bool LessOrEqual(double a, double b, double eps = 1e-9);
-bool GreatOrEqual(double a, double b, double eps = 1e-9);
+bool LessOrEqual(double a, double b, double eps = std::numeric_limits<double>::epsilon());
+bool GreatOrEqual(double a, double b, double eps = std::numeric_limits<double>::epsilon());
 
 } // namespace helper

@@ -120,14 +120,6 @@ void DBRetiredPlayerSaverListener::OnTick([[maybe_unused]] std::chrono::millisec
 		auto transaction = db_->GetWriteTransaction();
 		transaction.SaveRetired(game_hndl_.PopRetired());
 
-		// Tests require immediately recording in DB?, asyc deffered not supported
-		// auto write_functor = [transaction = db_->GetWriteTransaction(),
-		// 						 players = std::move(game_hndl_.PopRetired())]() mutable {
-		// 	transaction.SaveRetired(std::move(players));
-		// };
-		// if (!ioc_.stopped()) {
-		// 	net::post(write_strand_, std::move(write_functor));
-		// }
 	}
 }
 

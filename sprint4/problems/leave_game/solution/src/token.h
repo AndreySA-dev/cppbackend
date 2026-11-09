@@ -1,10 +1,8 @@
 #pragma once
 
-#include <cassert>
 #include <random>
 #include <string>
 #include "tagged.h"
-
 
 namespace token {
 
@@ -37,7 +35,6 @@ class TokenHandler {
 
 		constexpr int char_num = sizeof(T) * 8 / 4; // 4 bit in HEX char
 
-		assert(pos + char_num <= str.size());
 		size_t hi_bound = pos + char_num;
 		for (; pos < hi_bound; ++pos) {
 			str[pos] = detail::HEX_CHARS[number & 0xF]; // get only 4 lower bits (from numeric 0 to 15)
